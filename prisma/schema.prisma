@@ -1,0 +1,215 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  CITIZEN
+  LGA_CHAIRMAN
+  LGA_STAFF
+  ADVERTISER
+  ADMIN
+}
+
+enum LGAStatus {
+  PENDING
+  APPROVED
+  SUSPENDED
+  DEACTIVATED
+  REJECTED
+}
+
+enum VerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+// ─── Citizen / General Users ──────────────────────────────────────────────────
+model User {
+  id                  String    @id @default(cuid())
+  name                String
+  email               String    @unique
+  emailVerified       DateTime?
+  phone               String?
+  image               String?
+  password            String?
+  role                UserRole  @default(CITIZEN)
+  state               String?
+  lga                 String?
+  isActive            Boolean   @default(true)
+  isBanned            Boolean   @default(false)
+  banReason           String?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  accounts            Account[]
+  sessions            Session[]
+  verificationTokens  VerificationToken[]
+  passwordResetTokens PasswordResetToken[]
+
+  @@map("users")
+}
+
+// ─── NextAuth Tables ──────────────────────────────────────────────────────────
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model VerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expires   DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("verification_tokens")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expires   DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("password_reset_tokens")
+}
+
+// ─── LGA Tables ───────────────────────────────────────────────────────────────
+model LGA {
+  id              String     @id @default(cuid())
+  lgaName         String
+  state           String
+  chairmanName    String
+  email           String     @unique
+  phone           String
+  officeAddress   String
+  population      String?
+  description     String?    @db.Text
+  sectors         String[]
+  logoUrl         String?
+  status          LGAStatus  @default(PENDING)
+  isVerified      Boolean    @default(false)
+  freeUntil       DateTime?
+  subscriptionEnd DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  chairman        LGAChairman?
+  verificationDocs LGAVerificationDoc[]
+
+  @@unique([lgaName, state])
+  @@map("lgas")
+}
+
+model LGAChairman {
+  id              String    @id @default(cuid())
+  lgaId           String    @unique
+  email           String    @unique
+  password        String?
+  emailVerified   DateTime?
+  image           String?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  lga                 LGA                  @relation(fields: [lgaId], references: [id], onDelete: Cascade)
+  accounts            LGAAccount[]
+  verificationTokens  LGAVerificationToken[]
+  passwordResetTokens LGAPasswordResetToken[]
+
+  @@map("lga_chairmen")
+}
+
+model LGAAccount {
+  id                String  @id @default(cuid())
+  chairmanId        String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+
+  chairman LGAChairman @relation(fields: [chairmanId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("lga_accounts")
+}
+
+model LGAVerificationToken {
+  id          String   @id @default(cuid())
+  chairmanId  String
+  token       String   @unique
+  expires     DateTime
+  createdAt   DateTime @default(now())
+
+  chairman LGAChairman @relation(fields: [chairmanId], references: [id], onDelete: Cascade)
+
+  @@map("lga_verification_tokens")
+}
+
+model LGAPasswordResetToken {
+  id          String   @id @default(cuid())
+  chairmanId  String
+  token       String   @unique
+  expires     DateTime
+  used        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  chairman LGAChairman @relation(fields: [chairmanId], references: [id], onDelete: Cascade)
+
+  @@map("lga_password_reset_tokens")
+}
+
+model LGAVerificationDoc {
+  id          String             @id @default(cuid())
+  lgaId       String
+  docType     String
+  fileUrl     String
+  status      VerificationStatus @default(PENDING)
+  uploadedAt  DateTime           @default(now())
+
+  lga LGA @relation(fields: [lgaId], references: [id], onDelete: Cascade)
+
+  @@map("lga_verification_docs")
+}
