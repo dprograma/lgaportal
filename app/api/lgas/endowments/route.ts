@@ -15,7 +15,7 @@ const createSchema = z.object({
   investmentRange: z.string().optional(),
   contactPerson:  z.string().optional(),
   contactEmail:   z.string().email().optional().or(z.literal("")),
-  isPublished:    z.boolean().optional().default(true),
+  isPublished:    z.boolean().default(true),
 });
 
 const updateSchema = createSchema.partial().extend({ id: z.string().cuid() });

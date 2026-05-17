@@ -46,7 +46,7 @@ const schema = z.object({
   investmentRange: z.string().optional(),
   contactPerson:  z.string().optional(),
   contactEmail:   z.string().email("Enter a valid email").optional().or(z.literal("")),
-  isPublished:    z.boolean().optional().default(true),
+  isPublished:    z.boolean().default(true),
 });
 type FormValues = z.infer<typeof schema>;
 
