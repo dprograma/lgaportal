@@ -48,7 +48,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, inquiryId: inquiry.id }, { status: 201 });
   } catch (err) {
     if (err instanceof z.ZodError) {
-      return NextResponse.json({ error: err.errors[0].message }, { status: 422 });
+      return NextResponse.json({ error: err.issues[0].message }, { status: 422 });
     }
     console.error("Inquiry submit error:", err);
     return NextResponse.json({ error: "Something went wrong. Please try again." }, { status: 500 });
