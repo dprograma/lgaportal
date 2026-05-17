@@ -46,7 +46,7 @@ const schema = z.object({
   investmentRange: z.string().optional(),
   contactPerson:  z.string().optional(),
   contactEmail:   z.string().email("Enter a valid email").optional().or(z.literal("")),
-  isPublished:    z.boolean().default(true),
+  isPublished:    z.boolean(),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -66,7 +66,14 @@ export default function EndowmentsPage() {
   const {
     register, handleSubmit, reset, control,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({ resolver: zodResolver(schema) });
+  } = useForm<FormValues>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      category: "", title: "", description: "", highlights: "",
+      investmentRange: "", contactPerson: "", contactEmail: "",
+      isPublished: true,
+    },
+  });
 
   /* ── Load endowments ─────────────────────────────────────────────────── */
   const load = async () => {
