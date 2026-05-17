@@ -224,3 +224,114 @@ export async function sendLGAPasswordResetEmail(
     throw new Error(`Failed to send LGA password reset email: ${error.message}`);
   }
 }
+
+// ─── Investment: Investor welcome ──────────────────────────────────────────
+
+export async function sendInvestorWelcomeEmail(
+  email: string,
+  fullName: string
+): Promise<void> {
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 8px;color:#0f172a;font-size:24px;font-weight:700;">Welcome to LGA Portal Investor Network</h2>
+    <p style="margin:0 0 20px;color:#475569;font-size:15px;line-height:1.6;">
+      Dear <strong>${fullName}</strong>, thank you for registering as an investor on LGA Portal.
+      Your profile has been received and is currently under review by our team.
+    </p>
+    <div style="margin:0 0 24px;padding:20px;background:#f0fdf4;border-radius:10px;border:1px solid #bbf7d0;">
+      <p style="margin:0 0 10px;color:#15803d;font-size:14px;font-weight:600;">What happens next?</p>
+      <ul style="margin:0;padding-left:20px;color:#475569;font-size:13px;line-height:2;">
+        <li>Our team reviews your investment profile (1&ndash;2 business days)</li>
+        <li>You will be matched with LGAs whose endowments align with your sectors</li>
+        <li>We will send you a curated list of verified LGA opportunities</li>
+        <li>You can then reach out directly to LGA investment desks</li>
+      </ul>
+    </div>
+    <div style="text-align:center;margin:28px 0;">
+      <a href="${appUrl}/lgas?tab=investment"
+         style="background:linear-gradient(135deg,#15803d,#16a34a);color:#ffffff;text-decoration:none;
+                padding:14px 32px;border-radius:10px;font-size:15px;font-weight:600;display:inline-block;">
+        Browse LGA Opportunities
+      </a>
+    </div>
+    <p style="margin:0;color:#94a3b8;font-size:12px;text-align:center;">
+      Questions? Reply to this email or contact invest@lgaportal.ng
+    </p>
+  `);
+
+  const { error } = await resend.emails.send({
+    from,
+    to: email,
+    subject: "Your LGA Portal investor profile has been received",
+    html,
+  });
+
+  if (error) {
+    throw new Error(`Failed to send investor welcome email: ${error.message}`);
+  }
+}
+
+// ─── Investment: Inquiry notification to LGA ──────────────────────────────
+
+interface InquiryNotificationParams {
+  lgaEmail:      string;
+  lgaName:       string;
+  investorName:  string;
+  investorEmail: string;
+  company?:      string;
+  message:       string;
+}
+
+export async function sendInquiryNotificationToLGA(
+  params: InquiryNotificationParams
+): Promise<void> {
+  const { lgaEmail, lgaName, investorName, investorEmail, company, message } = params;
+
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 8px;color:#0f172a;font-size:24px;font-weight:700;">New Investment Inquiry</h2>
+    <p style="margin:0 0 20px;color:#475569;font-size:15px;line-height:1.6;">
+      <strong>${lgaName} LGA</strong> has received a new investment inquiry via LGA Portal.
+    </p>
+    <div style="margin:0 0 24px;padding:20px;background:#f8fafc;border-radius:10px;border:1px solid #e2e8f0;">
+      <table width="100%" cellpadding="0" cellspacing="0">
+        <tr>
+          <td style="padding:6px 0;color:#64748b;font-size:13px;width:130px;vertical-align:top;">Investor Name</td>
+          <td style="padding:6px 0;color:#0f172a;font-size:13px;font-weight:600;">${investorName}</td>
+        </tr>
+        ${company ? `
+        <tr>
+          <td style="padding:6px 0;color:#64748b;font-size:13px;vertical-align:top;">Company</td>
+          <td style="padding:6px 0;color:#0f172a;font-size:13px;">${company}</td>
+        </tr>` : ""}
+        <tr>
+          <td style="padding:6px 0;color:#64748b;font-size:13px;vertical-align:top;">Email</td>
+          <td style="padding:6px 0;color:#15803d;font-size:13px;"><a href="mailto:${investorEmail}" style="color:#15803d;">${investorEmail}</a></td>
+        </tr>
+      </table>
+    </div>
+    <div style="margin:0 0 24px;padding:20px;background:#f0fdf4;border-radius:10px;border-left:4px solid #16a34a;">
+      <p style="margin:0 0 6px;color:#15803d;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Message</p>
+      <p style="margin:0;color:#0f172a;font-size:14px;line-height:1.7;">${message}</p>
+    </div>
+    <div style="text-align:center;margin:28px 0;">
+      <a href="mailto:${investorEmail}"
+         style="background:linear-gradient(135deg,#15803d,#16a34a);color:#ffffff;text-decoration:none;
+                padding:14px 32px;border-radius:10px;font-size:15px;font-weight:600;display:inline-block;">
+        Reply to Investor
+      </a>
+    </div>
+    <p style="margin:0;color:#94a3b8;font-size:12px;text-align:center;">
+      You can also view and manage this inquiry from your LGA dashboard.
+    </p>
+  `);
+
+  const { error } = await resend.emails.send({
+    from,
+    to: lgaEmail,
+    subject: `New investment inquiry — ${lgaName} LGA`,
+    html,
+  });
+
+  if (error) {
+    throw new Error(`Failed to send inquiry notification: ${error.message}`);
+  }
+}

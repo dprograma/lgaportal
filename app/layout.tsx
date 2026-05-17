@@ -54,8 +54,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={inter.variable} suppressHydrationWarning>
-      <body className="font-sans antialiased bg-white text-slate-900">
+    <html lang="en" className={inter.variable} suppressHydrationWarning data-scroll-behavior="smooth">
+      <body className="font-sans antialiased bg-white text-slate-900" suppressHydrationWarning>
         {children}
         <Toaster
           position="top-right"

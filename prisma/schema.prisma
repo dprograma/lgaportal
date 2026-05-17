@@ -131,8 +131,10 @@ model LGA {
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
-  chairman        LGAChairman?
+  chairman         LGAChairman?
   verificationDocs LGAVerificationDoc[]
+  endowments       LGAEndowment[]
+  inquiries        InvestorInquiry[]
 
   @@unique([lgaName, state])
   @@map("lgas")
@@ -212,4 +214,81 @@ model LGAVerificationDoc {
   lga LGA @relation(fields: [lgaId], references: [id], onDelete: Cascade)
 
   @@map("lga_verification_docs")
+}
+
+// ─── Investment Feature ───────────────────────────────────────────────────────
+
+enum ResourceCategory {
+  AGRICULTURE
+  MINERALS
+  LIVESTOCK
+  FISHERIES
+  FORESTRY
+  ENERGY
+  TOURISM
+  MANUFACTURING
+}
+
+enum InquiryStatus {
+  PENDING
+  REVIEWED
+  CONNECTED
+  CLOSED
+}
+
+model Investor {
+  id              String    @id @default(cuid())
+  fullName        String
+  email           String    @unique
+  phone           String?
+  company         String?
+  country         String
+  sectors         String[]
+  minBudget       String?
+  maxBudget       String?
+  description     String?   @db.Text
+  isVerified      Boolean   @default(false)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  inquiries       InvestorInquiry[]
+
+  @@map("investors")
+}
+
+model LGAEndowment {
+  id              String           @id @default(cuid())
+  lgaId           String
+  category        ResourceCategory
+  title           String
+  description     String           @db.Text
+  highlights      String[]
+  investmentRange String?
+  contactPerson   String?
+  contactEmail    String?
+  isPublished     Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  lga             LGA              @relation(fields: [lgaId], references: [id], onDelete: Cascade)
+  inquiries       InvestorInquiry[]
+
+  @@map("lga_endowments")
+}
+
+model InvestorInquiry {
+  id              String        @id @default(cuid())
+  investorId      String
+  lgaId           String
+  endowmentId     String?
+  message         String        @db.Text
+  status          InquiryStatus @default(PENDING)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  investor        Investor      @relation(fields: [investorId], references: [id], onDelete: Cascade)
+  lga             LGA           @relation(fields: [lgaId], references: [id], onDelete: Cascade)
+  endowment       LGAEndowment? @relation(fields: [endowmentId], references: [id], onDelete: SetNull)
+
+  @@map("investor_inquiries")
 }
