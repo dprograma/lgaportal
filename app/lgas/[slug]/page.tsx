@@ -239,7 +239,7 @@ export default function LGAProfilePage() {
               <div className="flex items-center gap-2 mb-1.5">
                 <h1 className="text-2xl sm:text-3xl font-bold text-white">{lga.lgaName} LGA</h1>
                 {lga.isVerified && (
-                  <BadgeCheck className="h-5 w-5 text-green-400" title="Verified LGA" />
+                  <BadgeCheck className="h-5 w-5 text-green-400" />
                 )}
               </div>
               <p className="text-sm text-green-200/60 flex items-center gap-1.5">
