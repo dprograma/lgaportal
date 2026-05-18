@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -24,90 +24,24 @@ const CATEGORY_META: Record<string, { label: string; icon: LucideIcon; color: st
   MANUFACTURING: { label: "Manufacturing",  icon: Factory,  color: "text-slate-600"   },
 };
 
-/* ─── Mock LGA data (replace with real DB fetch in production) ───────────── */
-const MOCK_LGA = {
-  lgaName:     "Udi",
-  state:       "Enugu",
-  chairmanName: "Hon. Chukwuemeka Eze",
-  description: "Udi LGA is located in Enugu State, southeast Nigeria. It is endowed with significant mineral and agricultural resources and is one of the most industrially promising LGAs in the region.",
-  population:  "350,000",
-  isVerified:  true,
-  sectors:     ["Mining", "Agriculture", "Education"],
-};
-
-const MOCK_WARDS = [
-  {
-    id: "w1", wardNumber: 1, wardName: "Udi Ward",
-    councillorName: "Hon. Ngozi Obi", councillorPhone: "+234 803 000 0001",
-    councillorEmail: "ngozi.obi@udi.gov.ng", councillorImage: null,
-    description: "Covers the Udi urban centre and surrounding communities.", population: "42,000", isActive: true,
-  },
-  {
-    id: "w2", wardNumber: 2, wardName: "Agbudu Ward",
-    councillorName: "Hon. Emeka Nwosu", councillorPhone: "+234 803 000 0002",
-    councillorEmail: null, councillorImage: null,
-    description: "Encompasses the Agbudu and Oghu communities.", population: "38,500", isActive: true,
-  },
-  {
-    id: "w3", wardNumber: 3, wardName: "Ogbogoro Ward",
-    councillorName: "Hon. Chioma Eze", councillorPhone: "+234 803 000 0003",
-    councillorEmail: "chioma.eze@udi.gov.ng", councillorImage: null,
-    description: null, population: "31,000", isActive: true,
-  },
-  {
-    id: "w4", wardNumber: 4, wardName: "Abor Ward",
-    councillorName: "Hon. Ifeanyi Ugwu", councillorPhone: null,
-    councillorEmail: null, councillorImage: null,
-    description: null, population: "27,000", isActive: true,
-  },
-  {
-    id: "w5", wardNumber: 5, wardName: "Nimbo Ward",
-    councillorName: "Hon. Adaeze Okeke", councillorPhone: "+234 803 000 0005",
-    councillorEmail: "adaeze.okeke@udi.gov.ng", councillorImage: null,
-    description: "Covers Nimbo and Ugbene communities along the Enugu–Onitsha road.", population: "44,000", isActive: true,
-  },
-  {
-    id: "w6", wardNumber: 6, wardName: "Ezema Ward",
-    councillorName: "Hon. Sunday Agu", councillorPhone: null,
-    councillorEmail: null, councillorImage: null,
-    description: null, population: "29,500", isActive: false,
-  },
-];
-
-const MOCK_ENDOWMENTS = [
-  {
-    id: "1",
-    category: "MINERALS",
-    title: "Coal & Limestone Deposits",
-    description: "Udi hosts some of the richest coal and limestone deposits in southeast Nigeria. The coal seams are commercially viable and the limestone is high-grade, suitable for cement and building materials production.",
-    highlights: [
-      "Extensive coal deposits — commercially viable seams",
-      "High-grade limestone for cement production",
-      "Proximity to Enugu–Port Harcourt rail line",
-      "State mining investment promotion board active",
-    ],
-    investmentRange: "₦500M – ₦10B+",
-    contactPerson: "Investment Desk",
-    contactEmail: "invest@udi.gov.ng",
-    isPublished: true,
-  },
-  {
-    id: "2",
-    category: "AGRICULTURE",
-    title: "Rice, Cassava & Yam Belt",
-    description: "Fertile land across Udi supports year-round cultivation of rice, cassava, yam and palm produce. The LGA is part of the Enugu State Agricultural Development Programme zone.",
-    highlights: [
-      "Fertile loamy soil — multiple harvests per year",
-      "Rice & cassava as primary cash crops",
-      "State ADP support and input subsidies available",
-      "Farm-to-market road network under development",
-    ],
-    investmentRange: "₦100M – ₦3B",
-    contactPerson: "Agricultural Officer",
-    contactEmail: "agric@udi.gov.ng",
-    isPublished: true,
-  },
-];
+/* ─── LGA data types ─────────────────────────────────────────────────────── */
+interface LGAData {
+  id: string; lgaName: string; state: string; chairmanName: string;
+  description: string | null; population: string | null;
+  isVerified: boolean; sectors: string[];
+  wards: WardData[]; endowments: EndowmentData[];
+}
+interface WardData {
+  id: string; wardNumber: number | null; wardName: string;
+  councillorName: string; councillorPhone: string | null;
+  councillorEmail: string | null; councillorImage: string | null;
+  description: string | null; population: string | null; isActive: boolean;
+}
+interface EndowmentData {
+  id: string; category: string; title: string; description: string;
+  highlights: string[]; investmentRange: string | null;
+  contactPerson: string | null; contactEmail: string | null; isPublished: boolean;
+}
 
 /* ─── Tabs ───────────────────────────────────────────────────────────────── */
 type Tab = "overview" | "wards" | "endowments" | "projects";
@@ -240,14 +174,47 @@ function InquiryModal({
 
 /* ─── Main page ──────────────────────────────────────────────────────────── */
 export default function LGAProfilePage() {
-  const params            = useParams<{ slug: string }>();
-  const [tab, setTab]     = useState<Tab>("wards");
+  const params    = useParams<{ slug: string }>();
+  const [tab, setTab]         = useState<Tab>("wards");
   const [inquiry, setInquiry] = useState<{ title: string } | null>(null);
+  const [lga, setLga]         = useState<LGAData | null>(null);
+  const [notFound, setNotFound] = useState(false);
 
-  // In production: fetch LGA by slug from DB
-  const lga        = MOCK_LGA;
-  const endowments = MOCK_ENDOWMENTS;
-  const wards      = MOCK_WARDS;
+  useEffect(() => {
+    fetch(`/api/lgas/by-slug?slug=${params.slug}`)
+      .then((r) => r.json())
+      .then((json) => {
+        if (json.error) setNotFound(true);
+        else setLga(json.lga);
+      })
+      .catch(() => setNotFound(true));
+  }, [params.slug]);
+
+  if (notFound) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-2xl font-bold text-slate-700 mb-2">LGA Not Found</p>
+          <p className="text-slate-400 text-sm mb-6">No LGA matched &ldquo;{params.slug}&rdquo;.</p>
+          <Link href="/" className="text-green-700 font-semibold hover:underline">← Back to Home</Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!lga) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-center space-y-3">
+          <div className="h-10 w-48 bg-slate-200 animate-pulse rounded-xl mx-auto" />
+          <div className="h-4 w-32 bg-slate-100 animate-pulse rounded mx-auto" />
+        </div>
+      </div>
+    );
+  }
+
+  const wards      = lga.wards;
+  const endowments = lga.endowments;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -288,7 +255,7 @@ export default function LGAProfilePage() {
                 {lga.state} State, Nigeria
               </p>
               <div className="flex flex-wrap gap-2 mt-3">
-                {lga.sectors.map((s) => (
+                {(lga.sectors ?? []).map((s) => (
                   <span key={s} className="px-2.5 py-0.5 rounded-full bg-white/10 text-white/70 text-[11px] font-medium border border-white/10">
                     {s}
                   </span>
@@ -470,9 +437,9 @@ export default function LGAProfilePage() {
 
             <div className="space-y-4">
               {[
-                { icon: User,      label: "Chairman",   value: lga.chairmanName },
-                { icon: MapPin,    label: "State",      value: lga.state        },
-                { icon: Building2, label: "Population", value: lga.population   },
+                { icon: User,      label: "Chairman",   value: lga.chairmanName ?? "Vacant" },
+                { icon: MapPin,    label: "State",      value: lga.state },
+                { icon: Building2, label: "Population", value: lga.population ?? "N/A" },
               ].map(({ icon: Icon, label, value }) => (
                 <div key={label} className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-3">
                   <div className="h-9 w-9 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
