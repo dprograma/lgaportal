@@ -7,7 +7,8 @@ import { motion } from "framer-motion";
 import {
   MapPin, BadgeCheck, Building2, TrendingUp, FolderOpen,
   Wheat, Gem, Beef, Fish, TreePine, Zap, Factory,
-  ArrowLeft, ArrowRight, Mail, Phone, User,
+  ArrowLeft, ArrowRight, Mail, Phone, User, Users,
+  UserCircle2, Hash,
   type LucideIcon,
 } from "lucide-react";
 
@@ -33,6 +34,45 @@ const MOCK_LGA = {
   isVerified:  true,
   sectors:     ["Mining", "Agriculture", "Education"],
 };
+
+const MOCK_WARDS = [
+  {
+    id: "w1", wardNumber: 1, wardName: "Udi Ward",
+    councillorName: "Hon. Ngozi Obi", councillorPhone: "+234 803 000 0001",
+    councillorEmail: "ngozi.obi@udi.gov.ng", councillorImage: null,
+    description: "Covers the Udi urban centre and surrounding communities.", population: "42,000", isActive: true,
+  },
+  {
+    id: "w2", wardNumber: 2, wardName: "Agbudu Ward",
+    councillorName: "Hon. Emeka Nwosu", councillorPhone: "+234 803 000 0002",
+    councillorEmail: null, councillorImage: null,
+    description: "Encompasses the Agbudu and Oghu communities.", population: "38,500", isActive: true,
+  },
+  {
+    id: "w3", wardNumber: 3, wardName: "Ogbogoro Ward",
+    councillorName: "Hon. Chioma Eze", councillorPhone: "+234 803 000 0003",
+    councillorEmail: "chioma.eze@udi.gov.ng", councillorImage: null,
+    description: null, population: "31,000", isActive: true,
+  },
+  {
+    id: "w4", wardNumber: 4, wardName: "Abor Ward",
+    councillorName: "Hon. Ifeanyi Ugwu", councillorPhone: null,
+    councillorEmail: null, councillorImage: null,
+    description: null, population: "27,000", isActive: true,
+  },
+  {
+    id: "w5", wardNumber: 5, wardName: "Nimbo Ward",
+    councillorName: "Hon. Adaeze Okeke", councillorPhone: "+234 803 000 0005",
+    councillorEmail: "adaeze.okeke@udi.gov.ng", councillorImage: null,
+    description: "Covers Nimbo and Ugbene communities along the Enugu–Onitsha road.", population: "44,000", isActive: true,
+  },
+  {
+    id: "w6", wardNumber: 6, wardName: "Ezema Ward",
+    councillorName: "Hon. Sunday Agu", councillorPhone: null,
+    councillorEmail: null, councillorImage: null,
+    description: null, population: "29,500", isActive: false,
+  },
+];
 
 const MOCK_ENDOWMENTS = [
   {
@@ -70,7 +110,7 @@ const MOCK_ENDOWMENTS = [
 ];
 
 /* ─── Tabs ───────────────────────────────────────────────────────────────── */
-type Tab = "overview" | "endowments" | "projects";
+type Tab = "overview" | "wards" | "endowments" | "projects";
 
 /* ─── Inquiry modal ──────────────────────────────────────────────────────── */
 function InquiryModal({
@@ -201,12 +241,13 @@ function InquiryModal({
 /* ─── Main page ──────────────────────────────────────────────────────────── */
 export default function LGAProfilePage() {
   const params            = useParams<{ slug: string }>();
-  const [tab, setTab]     = useState<Tab>("endowments");
+  const [tab, setTab]     = useState<Tab>("wards");
   const [inquiry, setInquiry] = useState<{ title: string } | null>(null);
 
   // In production: fetch LGA by slug from DB
-  const lga = MOCK_LGA;
+  const lga        = MOCK_LGA;
   const endowments = MOCK_ENDOWMENTS;
+  const wards      = MOCK_WARDS;
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -261,23 +302,155 @@ export default function LGAProfilePage() {
       {/* Tab bar */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex gap-0">
-          {(["overview", "endowments", "projects"] as Tab[]).map((t) => (
+          {([
+            { id: "wards",      label: "Wards & Councillors"    },
+            { id: "overview",   label: "Overview"               },
+            { id: "endowments", label: "Investment & Endowments"},
+            { id: "projects",   label: "Projects"               },
+          ] as { id: Tab; label: string }[]).map(({ id, label }) => (
             <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-5 py-3.5 text-sm font-semibold capitalize border-b-2 transition-colors ${
-                tab === t
+              key={id}
+              onClick={() => setTab(id)}
+              className={`px-5 py-3.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors ${
+                tab === id
                   ? "border-green-600 text-green-700"
                   : "border-transparent text-slate-500 hover:text-slate-800"
               }`}
             >
-              {t === "endowments" ? "Investment & Endowments" : t.charAt(0).toUpperCase() + t.slice(1)}
+              {label}
             </button>
           ))}
         </div>
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+
+        {/* ── Wards & Councillors tab ───────────────────────────────── */}
+        {tab === "wards" && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Users className="h-5 w-5 text-green-600" />
+              <h2 className="text-lg font-bold text-slate-900">Wards & Councillors</h2>
+            </div>
+            <p className="text-sm text-slate-500 mb-6">
+              {lga.lgaName} LGA is divided into {wards.length} wards, each represented by an
+              elected councillor on the LGA legislative council.
+            </p>
+
+            {/* Summary strip */}
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              {[
+                { label: "Total Wards",   value: wards.length },
+                { label: "Active Wards",  value: wards.filter((w) => w.isActive).length },
+                { label: "Est. Population", value: wards.reduce((acc, w) => acc + (parseInt((w.population ?? "0").replace(/,/g, ""), 10) || 0), 0).toLocaleString() },
+              ].map((s) => (
+                <div key={s.label} className="bg-white border border-slate-200 rounded-xl p-4 text-center">
+                  <p className="text-2xl font-extrabold text-green-700">{s.value}</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{s.label}</p>
+                </div>
+              ))}
+            </div>
+
+            {wards.length === 0 ? (
+              <div className="bg-white border border-slate-200 border-dashed rounded-2xl p-12 text-center">
+                <FolderOpen className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+                <p className="text-sm text-slate-500">No ward information published yet for this LGA.</p>
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {wards.map((ward) => (
+                  <div
+                    key={ward.id}
+                    className={`bg-white rounded-2xl border overflow-hidden transition-all ${
+                      ward.isActive
+                        ? "border-slate-200 hover:border-green-300 hover:shadow-md"
+                        : "border-slate-100 opacity-60"
+                    }`}
+                  >
+                    <div className="h-1.5 bg-gradient-to-r from-green-700 via-green-500 to-green-400" />
+                    <div className="p-4">
+                      {/* Ward label */}
+                      <div className="flex items-center justify-between gap-2 mb-3">
+                        <div className="flex items-center gap-1.5">
+                          {ward.wardNumber && (
+                            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-green-700 bg-green-50 border border-green-100 px-1.5 py-0.5 rounded-md">
+                              <Hash className="h-2.5 w-2.5" />{ward.wardNumber}
+                            </span>
+                          )}
+                          <h3 className="text-sm font-bold text-slate-900">{ward.wardName}</h3>
+                        </div>
+                        {!ward.isActive && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-400">
+                            Inactive
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Councillor card */}
+                      <div className="flex items-center gap-2.5 p-2.5 bg-slate-50 rounded-xl mb-3">
+                        {ward.councillorImage ? (
+                          <img
+                            src={ward.councillorImage}
+                            alt={ward.councillorName}
+                            className="h-10 w-10 rounded-full object-cover shrink-0 border border-slate-200"
+                          />
+                        ) : (
+                          <div className="h-10 w-10 rounded-full bg-green-100 border border-green-200 flex items-center justify-center shrink-0">
+                            <UserCircle2 className="h-6 w-6 text-green-600" />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-xs font-bold text-slate-900 truncate">{ward.councillorName}</p>
+                          <p className="text-[10px] text-green-700 font-medium">Ward Councillor</p>
+                        </div>
+                      </div>
+
+                      {/* Description */}
+                      {ward.description && (
+                        <p className="text-xs text-slate-500 leading-relaxed mb-3 line-clamp-2">
+                          {ward.description}
+                        </p>
+                      )}
+
+                      {/* Population */}
+                      {ward.population && (
+                        <p className="text-[10px] text-slate-400 mb-3">
+                          Population: <span className="font-semibold text-slate-600">{ward.population}</span>
+                        </p>
+                      )}
+
+                      {/* Contact info */}
+                      {(ward.councillorPhone || ward.councillorEmail) && (
+                        <div className="pt-3 border-t border-slate-100 space-y-1.5">
+                          {ward.councillorPhone && (
+                            <a
+                              href={`tel:${ward.councillorPhone}`}
+                              className="flex items-center gap-2 text-xs text-slate-500 hover:text-green-700 transition-colors"
+                            >
+                              <Phone className="h-3 w-3 shrink-0" />{ward.councillorPhone}
+                            </a>
+                          )}
+                          {ward.councillorEmail && (
+                            <a
+                              href={`mailto:${ward.councillorEmail}`}
+                              className="flex items-center gap-2 text-xs text-slate-500 hover:text-green-700 transition-colors truncate"
+                            >
+                              <Mail className="h-3 w-3 shrink-0" />{ward.councillorEmail}
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
 
         {/* ── Overview tab ──────────────────────────────────────────── */}
         {tab === "overview" && (

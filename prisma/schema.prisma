@@ -135,6 +135,7 @@ model LGA {
   verificationDocs LGAVerificationDoc[]
   endowments       LGAEndowment[]
   inquiries        InvestorInquiry[]
+  wards            Ward[]
 
   @@unique([lgaName, state])
   @@map("lgas")
@@ -214,6 +215,29 @@ model LGAVerificationDoc {
   lga LGA @relation(fields: [lgaId], references: [id], onDelete: Cascade)
 
   @@map("lga_verification_docs")
+}
+
+// ─── Wards Feature ───────────────────────────────────────────────────────────
+
+model Ward {
+  id                String    @id @default(cuid())
+  lgaId             String
+  wardName          String
+  wardNumber        Int?
+  councillorName    String
+  councillorEmail   String?
+  councillorPhone   String?
+  councillorImage   String?
+  description       String?   @db.Text
+  population        String?
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  lga               LGA       @relation(fields: [lgaId], references: [id], onDelete: Cascade)
+
+  @@unique([lgaId, wardName])
+  @@map("wards")
 }
 
 // ─── Investment Feature ───────────────────────────────────────────────────────
