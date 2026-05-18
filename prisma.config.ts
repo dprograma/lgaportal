@@ -6,6 +6,9 @@ import { config } from "dotenv";
 config({ path: ".env.local" });
 
 export default defineConfig({
+  migrations: {
+    seed: "npx ts-node --project tsconfig.seed.json prisma/seed.ts",
+  },
   datasource: {
     url: process.env.DATABASE_URL,
   },
