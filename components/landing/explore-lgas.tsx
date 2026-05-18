@@ -187,7 +187,7 @@ export default function ExploreLGAs() {
                 <Link
                   href={
                     lga.projects > 0
-                      ? `/lga/${lga.name.toLowerCase().replace(/ /g, "-")}`
+                      ? `/lgas/${lga.name.toLowerCase().replace(/ /g, "-")}`
                       : "/lga-signup"
                   }
                   className={`w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all ${
