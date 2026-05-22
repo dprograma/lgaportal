@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { BadgeCheck, FolderOpen, TrendingUp, Eye, Plus } from "lucide-react";
+import { BadgeCheck, FolderOpen, TrendingUp, Eye } from "lucide-react";
 import Link from "next/link";
 
 interface LGA {
@@ -184,30 +184,15 @@ export default function ExploreLGAs() {
                   <p className="text-xs text-slate-400 italic mb-4">Not yet registered on platform</p>
                 )}
 
-                <Link
-                  href={
-                    lga.projects > 0
-                      ? `/lgas/${lga.name.toLowerCase().replace(/ /g, "-")}`
-                      : "/lga-signup"
-                  }
-                  className={`w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all ${
-                    lga.projects > 0
-                      ? "bg-slate-50 hover:bg-green-700 hover:text-white text-slate-700 border border-slate-200 hover:border-green-700"
-                      : "bg-green-700 text-white hover:bg-green-800"
-                  }`}
-                >
-                  {lga.projects > 0 ? (
-                    <>
-                      <Eye className="h-3 w-3" />
-                      View Profile
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-3 w-3" />
-                      Register LGA
-                    </>
-                  )}
-                </Link>
+                {lga.projects > 0 && (
+                  <Link
+                    href={`/lgas/${lga.name.toLowerCase().replace(/ /g, "-")}`}
+                    className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold transition-all bg-slate-50 hover:bg-green-700 hover:text-white text-slate-700 border border-slate-200 hover:border-green-700"
+                  >
+                    <Eye className="h-3 w-3" />
+                    View Profile
+                  </Link>
+                )}
               </div>
             </motion.div>
           ))}
