@@ -16,13 +16,17 @@ interface FeaturedLGA {
   trend: string;
 }
 
+function toSlug(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
+
 const featured: FeaturedLGA[] = [
-  { rank: 1, name: "Kano Municipal", state: "Kano", projects: 31, citizens: 4820, rating: 4.8, badge: "🏆 Most Projects", trend: "+12% this month" },
-  { rank: 2, name: "Lagos Island", state: "Lagos", projects: 24, citizens: 6210, rating: 4.7, badge: "⭐ Top Rated", trend: "+8% this month" },
-  { rank: 3, name: "Port Harcourt City", state: "Rivers", projects: 22, citizens: 3940, rating: 4.6, badge: "🔥 Most Engaged", trend: "+15% this month" },
-  { rank: 4, name: "Ikeja", state: "Lagos", projects: 18, citizens: 5100, rating: 4.5, badge: "✅ Recently Verified", trend: "+6% this month" },
-  { rank: 5, name: "Enugu North", state: "Enugu", projects: 15, citizens: 2870, rating: 4.4, badge: "📈 Fast Growing", trend: "+22% this month" },
-  { rank: 6, name: "Aba North", state: "Abia", projects: 13, citizens: 2100, rating: 4.2, badge: "🌟 New & Active", trend: "+18% this month" },
+  { rank: 1, name: "Kano Municipal",      state: "Kano",   projects: 31, citizens: 4820, rating: 4.8, badge: "🏆 Most Projects",     trend: "+12% this month" },
+  { rank: 2, name: "Lagos Island",         state: "Lagos",  projects: 24, citizens: 6210, rating: 4.7, badge: "⭐ Top Rated",          trend: "+8% this month"  },
+  { rank: 3, name: "Port Harcourt City",   state: "Rivers", projects: 22, citizens: 3940, rating: 4.6, badge: "🔥 Most Engaged",       trend: "+15% this month" },
+  { rank: 4, name: "Ikeja",               state: "Lagos",  projects: 18, citizens: 5100, rating: 4.5, badge: "✅ Recently Verified",  trend: "+6% this month"  },
+  { rank: 5, name: "Enugu North",          state: "Enugu",  projects: 15, citizens: 2870, rating: 4.4, badge: "📈 Fast Growing",       trend: "+22% this month" },
+  { rank: 6, name: "Aba North",            state: "Abia",   projects: 13, citizens: 2100, rating: 4.2, badge: "🌟 New & Active",       trend: "+18% this month" },
 ];
 
 export default function FeaturedLGAs() {
@@ -123,7 +127,7 @@ export default function FeaturedLGAs() {
                   <p className="text-[11px] text-green-600 font-semibold">{lga.trend}</p>
 
                   <Link
-                    href="#"
+                    href={`/lgas/${toSlug(lga.name)}`}
                     className="w-full flex items-center justify-center gap-1 py-2 rounded-xl bg-green-700 hover:bg-green-800 text-white text-xs font-semibold transition-colors"
                   >
                     <Eye className="h-3 w-3" />

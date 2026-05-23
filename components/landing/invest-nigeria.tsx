@@ -124,7 +124,7 @@ const lgaProfiles: LGAProfile[] = [
   },
   {
     id: 5,
-    lga: "Kebbi",
+    lga: "Birnin Kebbi",
     state: "Kebbi",
     tagline: "Nigeria's Rice Bowl & Inland Fisheries Zone",
     resources: ["agriculture", "fisheries"],
@@ -141,8 +141,8 @@ const lgaProfiles: LGAProfile[] = [
   },
   {
     id: 6,
-    lga: "Nassarawa",
-    state: "Nassarawa",
+    lga: "Nasarawa",
+    state: "Nasarawa",
     tagline: "Solid Minerals Powerhouse of North-Central Nigeria",
     resources: ["minerals", "energy"],
     highlights: [
