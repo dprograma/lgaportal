@@ -4,11 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, TrendingUp, FileText, MessageSquare,
-  Settings, LogOut, Shield, Users,
+  Settings, LogOut, Shield, Users, Newspaper,
 } from "lucide-react";
 
 const navItems = [
   { href: "/lga-dashboard",             label: "Overview",           icon: LayoutDashboard },
+  { href: "/lga-dashboard/posts",       label: "Posts & Updates",    icon: Newspaper       },
   { href: "/lga-dashboard/wards",       label: "Wards & Councillors",icon: Users           },
   { href: "/lga-dashboard/endowments",  label: "Endowments",         icon: TrendingUp      },
   { href: "/lga-dashboard/projects",    label: "Projects",           icon: FileText        },

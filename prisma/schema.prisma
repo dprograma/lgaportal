@@ -50,6 +50,10 @@ model User {
   sessions            Session[]
   verificationTokens  VerificationToken[]
   passwordResetTokens PasswordResetToken[]
+  reactions           Reaction[]
+  comments            Comment[]
+  feedbacks           Feedback[]
+  flags               FlagReport[]
 
   @@map("users")
 }
@@ -136,6 +140,7 @@ model LGA {
   endowments       LGAEndowment[]
   inquiries        InvestorInquiry[]
   wards            Ward[]
+  posts            Post[]
 
   @@unique([lgaName, state])
   @@map("lgas")
@@ -238,6 +243,108 @@ model Ward {
 
   @@unique([lgaId, wardName])
   @@map("wards")
+}
+
+// ─── Engagement Feature (FR-01-03) ───────────────────────────────────────────
+
+enum PostStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ReactionType {
+  LIKE
+  DISLIKE
+}
+
+enum FlagReason {
+  INAPPROPRIATE
+  MISINFORMATION
+  SPAM
+  OFFENSIVE
+  OTHER
+}
+
+model Post {
+  id        String     @id @default(cuid())
+  lgaId     String
+  title     String
+  content   String     @db.Text
+  imageUrl  String?
+  status    PostStatus @default(PUBLISHED)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  lga       LGA          @relation(fields: [lgaId], references: [id], onDelete: Cascade)
+  reactions Reaction[]
+  comments  Comment[]
+  feedbacks Feedback[]
+  flags     FlagReport[]
+
+  @@map("posts")
+}
+
+model Reaction {
+  id        String       @id @default(cuid())
+  postId    String
+  userId    String
+  type      ReactionType
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@map("reactions")
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  content   String   @db.Text
+  isHidden  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("comments")
+}
+
+model Feedback {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  rating    Int
+  category  String
+  message   String   @db.Text
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@map("feedbacks")
+}
+
+model FlagReport {
+  id         String     @id @default(cuid())
+  postId     String
+  userId     String
+  reason     FlagReason
+  details    String?    @db.Text
+  isReviewed Boolean    @default(false)
+  createdAt  DateTime   @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@map("flag_reports")
 }
 
 // ─── Investment Feature ───────────────────────────────────────────────────────

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { motion } from "framer-motion";
@@ -8,9 +8,10 @@ import {
   MapPin, BadgeCheck, Building2, TrendingUp, FolderOpen,
   Wheat, Gem, Beef, Fish, TreePine, Zap, Factory,
   ArrowLeft, ArrowRight, Mail, Phone, User, Users,
-  UserCircle2, Hash,
+  UserCircle2, Hash, Newspaper, Loader2,
   type LucideIcon,
 } from "lucide-react";
+import PostCard, { type PostData } from "@/components/engagement/PostCard";
 
 /* ─── Category meta ──────────────────────────────────────────────────────── */
 const CATEGORY_META: Record<string, { label: string; icon: LucideIcon; color: string }> = {
@@ -44,7 +45,7 @@ interface EndowmentData {
 }
 
 /* ─── Tabs ───────────────────────────────────────────────────────────────── */
-type Tab = "overview" | "wards" | "endowments" | "projects";
+type Tab = "overview" | "wards" | "endowments" | "projects" | "posts";
 
 /* ─── Inquiry modal ──────────────────────────────────────────────────────── */
 function InquiryModal({
@@ -175,10 +176,17 @@ function InquiryModal({
 /* ─── Main page ──────────────────────────────────────────────────────────── */
 export default function LGAProfilePage() {
   const params    = useParams<{ slug: string }>();
-  const [tab, setTab]         = useState<Tab>("wards");
-  const [inquiry, setInquiry] = useState<{ title: string } | null>(null);
-  const [lga, setLga]         = useState<LGAData | null>(null);
+  const [tab, setTab]           = useState<Tab>("wards");
+  const [inquiry, setInquiry]   = useState<{ title: string } | null>(null);
+  const [lga, setLga]           = useState<LGAData | null>(null);
   const [notFound, setNotFound] = useState(false);
+
+  // Posts state
+  const [posts,        setPosts]        = useState<PostData[]>([]);
+  const [postsTotal,   setPostsTotal]   = useState(0);
+  const [postsLoading, setPostsLoading] = useState(false);
+  const [postsOffset,  setPostsOffset]  = useState(0);
+  const POSTS_LIMIT = 10;
 
   useEffect(() => {
     fetch(`/api/lgas/by-slug?slug=${params.slug}`)
@@ -189,6 +197,27 @@ export default function LGAProfilePage() {
       })
       .catch(() => setNotFound(true));
   }, [params.slug]);
+
+  const fetchPosts = useCallback(async (lgaId: string, offset: number, append = false) => {
+    setPostsLoading(true);
+    try {
+      const res  = await fetch(`/api/posts?lgaId=${lgaId}&limit=${POSTS_LIMIT}&offset=${offset}`);
+      const data = await res.json();
+      setPosts((prev) => append ? [...prev, ...(data.posts ?? [])] : (data.posts ?? []));
+      setPostsTotal(data.total ?? 0);
+    } catch {
+      // silently fail
+    } finally {
+      setPostsLoading(false);
+    }
+  }, []);
+
+  // Load posts when switching to posts tab
+  useEffect(() => {
+    if (tab === "posts" && lga && posts.length === 0 && postsOffset === 0) {
+      fetchPosts(lga.id, 0);
+    }
+  }, [tab, lga, posts.length, postsOffset, fetchPosts]);
 
   if (notFound) {
     return (
@@ -271,6 +300,7 @@ export default function LGAProfilePage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 flex gap-0">
           {([
             { id: "wards",      label: "Wards & Councillors"    },
+            { id: "posts",      label: "Posts & Updates"        },
             { id: "overview",   label: "Overview"               },
             { id: "endowments", label: "Investment & Endowments"},
             { id: "projects",   label: "Projects"               },
@@ -291,6 +321,64 @@ export default function LGAProfilePage() {
       </div>
 
       <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
+
+        {/* ── Posts & Updates tab ──────────────────────────────────── */}
+        {tab === "posts" && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <Newspaper className="h-5 w-5 text-green-600" />
+              <h2 className="text-lg font-bold text-slate-900">Posts & Updates</h2>
+            </div>
+            <p className="text-sm text-slate-500 mb-6">
+              Official announcements and project updates from {lga.lgaName} LGA.
+              Like, comment, submit feedback, or report content.
+            </p>
+
+            {postsLoading && posts.length === 0 ? (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="h-6 w-6 animate-spin text-slate-300" />
+              </div>
+            ) : posts.length === 0 ? (
+              <div className="text-center py-20 bg-white rounded-2xl border border-dashed border-slate-200">
+                <Newspaper className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+                <p className="text-slate-500 font-medium mb-1">No posts yet</p>
+                <p className="text-sm text-slate-400">
+                  {lga.lgaName} LGA hasn&apos;t published any posts yet. Check back soon.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {posts.map((post) => (
+                  <PostCard key={post.id} post={post} />
+                ))}
+
+                {/* Load more */}
+                {posts.length < postsTotal && (
+                  <div className="text-center pt-2">
+                    <button
+                      onClick={() => {
+                        const next = postsOffset + POSTS_LIMIT;
+                        setPostsOffset(next);
+                        fetchPosts(lga.id, next, true);
+                      }}
+                      disabled={postsLoading}
+                      className="px-6 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-600 hover:border-green-400 hover:text-green-700 disabled:opacity-50 flex items-center gap-2 mx-auto transition-colors"
+                    >
+                      {postsLoading
+                        ? <><Loader2 className="h-4 w-4 animate-spin" /> Loading…</>
+                        : `Load more (${postsTotal - posts.length} remaining)`
+                      }
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+          </motion.div>
+        )}
 
         {/* ── Wards & Councillors tab ───────────────────────────────── */}
         {tab === "wards" && (

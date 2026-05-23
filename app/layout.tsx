@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
+import Providers from "@/components/providers";
 import "./globals.css";
 
 const inter = Inter({
@@ -56,7 +57,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning data-scroll-behavior="smooth">
       <body className="font-sans antialiased bg-white text-slate-900" suppressHydrationWarning>
-        {children}
+        <Providers>{children}</Providers>
         <Toaster
           position="top-right"
           richColors
