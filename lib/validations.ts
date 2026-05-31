@@ -109,6 +109,8 @@ export const lgaSignUpSchema = z
       .max(1000, "Description must be at most 1000 characters")
       .optional(),
     sectors: z.array(z.string()).min(1, "Select at least one sector"),
+    tenureStartDate: z.string().optional(),
+    tenureEndDate: z.string().optional(),
     password: z
       .string()
       .min(8, "Password must be at least 8 characters")
@@ -137,3 +139,18 @@ export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 export type LGASignUpInput = z.infer<typeof lgaSignUpSchema>;
 export type LGALoginInput = z.infer<typeof lgaLoginSchema>;
+
+// OTP schemas
+export const otpSendSchema = z.object({
+  identifier: z.string().email("Invalid email address"),
+  purpose: z.enum(["CITIZEN_LOGIN", "LGA_LOGIN", "REGISTER", "SENSITIVE"]),
+});
+
+export const otpVerifySchema = z.object({
+  identifier: z.string().email("Invalid email address"),
+  code: z.string().length(6, "Code must be 6 digits").regex(/^\d{6}$/, "Code must be numeric"),
+  purpose: z.enum(["CITIZEN_LOGIN", "LGA_LOGIN", "REGISTER", "SENSITIVE"]),
+});
+
+export type OTPSendInput = z.infer<typeof otpSendSchema>;
+export type OTPVerifyInput = z.infer<typeof otpVerifySchema>;

@@ -24,5 +24,13 @@ export async function GET(req: NextRequest) {
 
   if (!lga) return NextResponse.json({ error: "LGA not found." }, { status: 404 });
 
-  return NextResponse.json({ lga });
+  // Citizen count: users whose lga + state match this LGA
+  const citizenCount = await db.user.count({
+    where: {
+      lga:   { equals: lga.lgaName, mode: "insensitive" },
+      state: { equals: lga.state,   mode: "insensitive" },
+    },
+  });
+
+  return NextResponse.json({ lga: { ...lga, citizenCount } });
 }

@@ -10,7 +10,7 @@ import { toast } from "sonner";
 import {
   Building2, Mail, Phone, MapPin, Lock, Users,
   ShieldCheck, BadgeCheck, CheckCircle2, ChevronRight, ChevronLeft,
-  FileText, Landmark, KeyRound,
+  FileText, Landmark, KeyRound, UploadCloud, X, Trash2,
 } from "lucide-react";
 
 import { lgaSignUpSchema, type LGASignUpInput } from "@/lib/validations";
@@ -79,6 +79,12 @@ const STEPS = [
     subtitle: "Secure access credentials and final confirmation",
     icon: KeyRound,
   },
+  {
+    id: "D",
+    title: "Verification Documents",
+    subtitle: "Upload supporting documents (optional but recommended)",
+    icon: UploadCloud,
+  },
 ];
 
 // ─── Section label ─────────────────────────────────────────────────────────
@@ -95,10 +101,26 @@ function SectionLabel({ icon, label }: { icon: React.ReactNode; label: string })
 
 // ─── Page ─────────────────────────────────────────────────────────────────
 
+interface UploadedDoc {
+  name:   string;
+  mime:   string;
+  base64: string;
+}
+
+const ALLOWED_DOC_TYPES = [
+  { mime: "application/pdf", ext: ".pdf" },
+  { mime: "image/jpeg",      ext: ".jpg / .jpeg" },
+  { mime: "image/png",       ext: ".png" },
+];
+
 export default function LGASignupPage() {
   const router = useRouter();
-  const [step, setStep] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [step,         setStep]         = useState(0);
+  const [loading,      setLoading]      = useState(false);
+  const [registeredId, setRegisteredId] = useState<string | null>(null);
+  const [registeredEmail, setRegisteredEmail] = useState("");
+  const [docs,         setDocs]         = useState<UploadedDoc[]>([]);
+  const [docUploading, setDocUploading] = useState(false);
 
   const {
     register,
@@ -137,12 +159,65 @@ export default function LGASignupPage() {
         toast.error(json.error ?? "Registration failed. Please try again.");
         return;
       }
-      toast.success("LGA registered! Please verify your email.");
-      router.push(`/lga-verify-email?email=${encodeURIComponent(data.email)}`);
+      toast.success("LGA registered! Proceed to upload verification documents.");
+      setRegisteredId(json.lgaId ?? null);
+      setRegisteredEmail(data.email);
+      setStep(3); // advance to Step D
     } catch {
       toast.error("Something went wrong. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDocFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    const remaining = 5 - docs.length;
+    if (remaining <= 0) { toast.error("Maximum 5 documents allowed."); return; }
+
+    const toProcess = files.slice(0, remaining);
+    toProcess.forEach((file) => {
+      if (file.size > 5 * 1024 * 1024) { toast.error(`${file.name} exceeds 5 MB.`); return; }
+      const allowed = ALLOWED_DOC_TYPES.map((t) => t.mime);
+      if (!allowed.includes(file.type)) { toast.error(`${file.name}: only PDF, JPG, PNG allowed.`); return; }
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const result = ev.target?.result as string;
+        setDocs((prev) => [
+          ...prev,
+          { name: file.name, mime: file.type, base64: result.split(",")[1] },
+        ]);
+      };
+      reader.readAsDataURL(file);
+    });
+    // reset input
+    e.target.value = "";
+  };
+
+  const removeDoc = (idx: number) => setDocs((prev) => prev.filter((_, i) => i !== idx));
+
+  const submitDocs = async () => {
+    if (!registeredId || docs.length === 0) {
+      // Skip — go straight to verify email
+      router.push(`/lga-verify-email?email=${encodeURIComponent(registeredEmail)}`);
+      return;
+    }
+    setDocUploading(true);
+    try {
+      for (const doc of docs) {
+        await fetch("/api/lga/documents", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "x-lga-id": registeredId },
+          body: JSON.stringify({ fileData: doc.base64, mimeType: doc.mime, fileName: doc.name }),
+        });
+      }
+      toast.success(`${docs.length} document${docs.length !== 1 ? "s" : ""} uploaded successfully.`);
+    } catch {
+      toast.error("Some documents failed to upload — you can re-upload from the dashboard.");
+    } finally {
+      setDocUploading(false);
+      router.push(`/lga-verify-email?email=${encodeURIComponent(registeredEmail)}`);
     }
   };
 
@@ -572,12 +647,83 @@ export default function LGASignupPage() {
                     </motion.div>
                   )}
 
+                  {/* ── STEP 3: Document Upload ──────────────────── */}
+                  {step === 3 && (
+                    <motion.div
+                      key="step3"
+                      initial={{ opacity: 0, x: 24 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -24 }}
+                      transition={{ duration: 0.25 }}
+                      className="space-y-5"
+                    >
+                      {/* Success note */}
+                      <div className="flex gap-3 p-3.5 rounded-lg bg-green-50 border border-green-200">
+                        <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0 mt-0.5" />
+                        <p className="text-xs text-green-800 leading-relaxed">
+                          Your LGA application has been submitted! Upload supporting documents now
+                          to speed up admin review, or skip and upload them later from your dashboard.
+                        </p>
+                      </div>
+
+                      <SectionLabel icon={<UploadCloud className="h-3.5 w-3.5" />} label="Verification Documents" />
+
+                      <div className="text-xs text-slate-500 space-y-1">
+                        <p>Accepted documents:</p>
+                        <ul className="list-disc list-inside text-slate-400 space-y-0.5">
+                          <li>Government-issued ID of Chairman</li>
+                          <li>INEC LGA code / official LGA certificate</li>
+                          <li>Letter of confirmation from state government</li>
+                        </ul>
+                        <p className="text-slate-400 mt-1">Max 5 files · 5 MB each · PDF, JPG, or PNG</p>
+                      </div>
+
+                      {/* Upload zone */}
+                      <label className={`flex flex-col items-center justify-center gap-2 border-2 border-dashed rounded-xl p-6 cursor-pointer transition-colors ${
+                        docs.length >= 5 ? "border-slate-100 opacity-50 cursor-not-allowed" : "border-slate-200 hover:border-green-400 hover:bg-slate-50"
+                      }`}>
+                        <UploadCloud className="h-8 w-8 text-slate-300" />
+                        <p className="text-sm font-medium text-slate-600">
+                          {docs.length >= 5 ? "Maximum reached" : "Click to add files"}
+                        </p>
+                        <p className="text-xs text-slate-400">{docs.length} / 5 uploaded</p>
+                        <input
+                          type="file"
+                          accept=".pdf,.jpg,.jpeg,.png"
+                          multiple
+                          className="sr-only"
+                          disabled={docs.length >= 5}
+                          onChange={handleDocFile}
+                        />
+                      </label>
+
+                      {/* Uploaded files list */}
+                      {docs.length > 0 && (
+                        <div className="space-y-2">
+                          {docs.map((doc, idx) => (
+                            <div key={idx} className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-xl">
+                              <FileText className="h-4 w-4 text-green-600 shrink-0" />
+                              <span className="flex-1 text-xs text-green-800 font-medium truncate">{doc.name}</span>
+                              <button
+                                type="button"
+                                onClick={() => removeDoc(idx)}
+                                className="p-1 rounded-lg hover:bg-green-200 text-green-600 transition-colors"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+
                 </AnimatePresence>
               </div>
 
               {/* Navigation footer */}
               <div className="px-6 pb-6 flex gap-3">
-                {step > 0 && (
+                {step > 0 && step < 3 && (
                   <Button
                     type="button"
                     variant="outline"
@@ -589,7 +735,7 @@ export default function LGASignupPage() {
                     Back
                   </Button>
                 )}
-                {step < STEPS.length - 1 ? (
+                {step < 2 && (
                   <Button
                     type="button"
                     variant="primary"
@@ -600,7 +746,8 @@ export default function LGASignupPage() {
                   >
                     Continue to Section {STEPS[step + 1].id}
                   </Button>
-                ) : (
+                )}
+                {step === 2 && (
                   <Button
                     type="submit"
                     variant="primary"
@@ -612,7 +759,31 @@ export default function LGASignupPage() {
                     Submit LGA Application
                   </Button>
                 )}
-              </div>
+                {step === 3 && (
+                  <>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="md"
+                      fullWidth
+                      onClick={() => router.push(`/lga-verify-email?email=${encodeURIComponent(registeredEmail)}`)}
+                    >
+                      Skip for now
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="lg"
+                      fullWidth
+                      loading={docUploading}
+                      className="font-semibold tracking-wide"
+                      onClick={submitDocs}
+                    >
+                      {docs.length > 0 ? `Upload & Continue` : "Continue"}
+                    </Button>
+                  </>
+                )}
+              </div>{/* end nav footer */}
 
             </form>
           </div>

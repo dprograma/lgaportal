@@ -72,8 +72,13 @@ export default function LGALoginPage() {
         return;
       }
 
-      toast.success("Welcome back!");
-      router.push("/lga-dashboard");
+      // Send OTP then redirect to verify
+      await fetch("/api/otp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: data.email, purpose: "LGA_LOGIN" }),
+      });
+      router.push(`/verify-otp?email=${encodeURIComponent(data.email)}&purpose=LGA_LOGIN&next=/lga-dashboard`);
     } catch {
       toast.error("Something went wrong. Please try again.");
     } finally {

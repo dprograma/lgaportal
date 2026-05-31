@@ -29,7 +29,7 @@ const CATEGORY_META: Record<string, { label: string; icon: LucideIcon; color: st
 interface LGAData {
   id: string; lgaName: string; state: string; chairmanName: string;
   description: string | null; population: string | null;
-  isVerified: boolean; sectors: string[];
+  isVerified: boolean; sectors: string[]; citizenCount: number;
   wards: WardData[]; endowments: EndowmentData[];
 }
 interface WardData {
@@ -525,9 +525,10 @@ export default function LGAProfilePage() {
 
             <div className="space-y-4">
               {[
-                { icon: User,      label: "Chairman",   value: lga.chairmanName ?? "Vacant" },
-                { icon: MapPin,    label: "State",      value: lga.state },
-                { icon: Building2, label: "Population", value: lga.population ?? "N/A" },
+                { icon: User,      label: "Chairman",        value: lga.chairmanName ?? "Vacant" },
+                { icon: MapPin,    label: "State",           value: lga.state },
+                { icon: Building2, label: "Est. Population", value: lga.population ?? "N/A" },
+                { icon: Users,     label: "Registered Citizens", value: lga.citizenCount.toLocaleString() },
               ].map(({ icon: Icon, label, value }) => (
                 <div key={label} className="bg-white rounded-2xl border border-slate-200 p-4 flex items-center gap-3">
                   <div className="h-9 w-9 rounded-xl bg-green-50 flex items-center justify-center shrink-0">

@@ -115,25 +115,54 @@ model PasswordResetToken {
   @@map("password_reset_tokens")
 }
 
+// ─── OTP ──────────────────────────────────────────────────────────────────────
+
+enum OTPPurpose {
+  CITIZEN_LOGIN
+  LGA_LOGIN
+  REGISTER
+  SENSITIVE
+}
+
+model OTPCode {
+  id          String     @id @default(cuid())
+  identifier  String
+  code        String
+  purpose     OTPPurpose
+  attempts    Int        @default(0)
+  lockedUntil DateTime?
+  usedAt      DateTime?
+  expiresAt   DateTime
+  createdAt   DateTime   @default(now())
+
+  @@index([identifier, purpose])
+  @@map("otp_codes")
+}
+
 // ─── LGA Tables ───────────────────────────────────────────────────────────────
 model LGA {
-  id              String     @id @default(cuid())
-  lgaName         String
-  state           String
-  chairmanName    String
-  email           String     @unique
-  phone           String
-  officeAddress   String
-  population      String?
-  description     String?    @db.Text
-  sectors         String[]
-  logoUrl         String?
-  status          LGAStatus  @default(PENDING)
-  isVerified      Boolean    @default(false)
-  freeUntil       DateTime?
-  subscriptionEnd DateTime?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  id                  String     @id @default(cuid())
+  lgaName             String
+  state               String
+  chairmanName        String
+  email               String     @unique
+  phone               String
+  officeAddress       String
+  population          String?
+  description         String?    @db.Text
+  sectors             String[]
+  logoUrl             String?
+  status              LGAStatus  @default(PENDING)
+  isVerified          Boolean    @default(false)
+  freeUntil           DateTime?
+  subscriptionEnd     DateTime?
+  subscriptionStatus  String?
+  tenureStartDate     DateTime?
+  tenureEndDate       DateTime?
+  tenureStatus        String     @default("ACTIVE")
+  gracePeriodEndsAt   DateTime?
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
 
   chairman         LGAChairman?
   verificationDocs LGAVerificationDoc[]
@@ -141,6 +170,8 @@ model LGA {
   inquiries        InvestorInquiry[]
   wards            Ward[]
   posts            Post[]
+  staff            LGAStaff[]
+  tenures          LGATenure[]
 
   @@unique([lgaName, state])
   @@map("lgas")
@@ -161,6 +192,7 @@ model LGAChairman {
   accounts            LGAAccount[]
   verificationTokens  LGAVerificationToken[]
   passwordResetTokens LGAPasswordResetToken[]
+  staff               LGAStaff[]
 
   @@map("lga_chairmen")
 }
@@ -422,4 +454,45 @@ model InvestorInquiry {
   endowment       LGAEndowment? @relation(fields: [endowmentId], references: [id], onDelete: SetNull)
 
   @@map("investor_inquiries")
+}
+
+// ─── Staff ────────────────────────────────────────────────────────────────────
+
+model LGAStaff {
+  id          String      @id @default(cuid())
+  lgaId       String
+  chairmanId  String
+  name        String
+  email       String      @unique
+  phone       String?
+  role        String      @default("STAFF")
+  password    String?
+  isActive    Boolean     @default(true)
+  canPublish  Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  lga         LGA         @relation(fields: [lgaId], references: [id], onDelete: Cascade)
+  chairman    LGAChairman @relation(fields: [chairmanId], references: [id], onDelete: Cascade)
+
+  @@map("lga_staff")
+}
+
+// ─── Tenure ───────────────────────────────────────────────────────────────────
+
+model LGATenure {
+  id             String    @id @default(cuid())
+  lgaId          String
+  chairmanName   String
+  startDate      DateTime
+  endDate        DateTime
+  isActive       Boolean   @default(true)
+  reElectionDoc  String?
+  status         String    @default("ACTIVE")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  lga            LGA       @relation(fields: [lgaId], references: [id], onDelete: Cascade)
+
+  @@map("lga_tenures")
 }

@@ -74,9 +74,13 @@ function LoginContent() {
         return;
       }
 
-      toast.success("Welcome back!");
-      router.push(callbackUrl);
-      router.refresh();
+      // Send OTP then redirect to verify
+      await fetch("/api/otp/send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: data.email, purpose: "CITIZEN_LOGIN" }),
+      });
+      router.push(`/verify-otp?email=${encodeURIComponent(data.email)}&purpose=CITIZEN_LOGIN&next=${encodeURIComponent(callbackUrl)}`);
     } catch {
       toast.error("Something went wrong. Please try again.");
     } finally {

@@ -1,0 +1,338 @@
+"use client";
+
+import { useEffect, useState, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import {
+  Building2, Search, CheckCircle, XCircle, Clock, BadgeCheck,
+  ChevronDown, ChevronRight, AlertCircle, Filter,
+} from "lucide-react";
+import { toast } from "sonner";
+
+const ADMIN_SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET ?? "";
+
+type Status = "ALL" | "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
+
+interface LGAItem {
+  id: string;
+  lgaName: string;
+  state: string;
+  chairmanName: string;
+  email: string;
+  phone: string;
+  status: string;
+  isVerified: boolean;
+  tenureStatus: string;
+  freeUntil: string | null;
+  createdAt: string;
+  _count: { verificationDocs: number };
+}
+
+const STATUS_TABS: { label: string; value: Status; color: string }[] = [
+  { label: "All",       value: "ALL",       color: "text-slate-600"  },
+  { label: "Pending",   value: "PENDING",   color: "text-amber-700"  },
+  { label: "Approved",  value: "APPROVED",  color: "text-green-700"  },
+  { label: "Rejected",  value: "REJECTED",  color: "text-red-700"    },
+  { label: "Suspended", value: "SUSPENDED", color: "text-slate-500"  },
+];
+
+function StatusBadge({ status }: { status: string }) {
+  const cfg: Record<string, string> = {
+    PENDING:   "bg-amber-100 text-amber-800",
+    APPROVED:  "bg-green-100 text-green-800",
+    REJECTED:  "bg-red-100 text-red-800",
+    SUSPENDED: "bg-slate-100 text-slate-600",
+  };
+  return (
+    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${cfg[status] ?? "bg-slate-100 text-slate-600"}`}>
+      {status}
+    </span>
+  );
+}
+
+export default function AdminLGAsPage() {
+  const [lgas,       setLgas]       = useState<LGAItem[]>([]);
+  const [total,      setTotal]      = useState(0);
+  const [loading,    setLoading]    = useState(true);
+  const [tab,        setTab]        = useState<Status>("ALL");
+  const [search,     setSearch]     = useState("");
+  const [dSearch,    setDSearch]    = useState("");
+  const [page,       setPage]       = useState(0);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [rejectId,   setRejectId]   = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
+  const [acting,     setActing]     = useState<string | null>(null);
+  const PAGE = 25;
+
+  // Debounce search
+  useEffect(() => {
+    const t = setTimeout(() => { setDSearch(search); setPage(0); }, 350);
+    return () => clearTimeout(t);
+  }, [search]);
+
+  useEffect(() => { setPage(0); }, [tab]);
+
+  const fetchLgas = useCallback(async () => {
+    setLoading(true);
+    const params = new URLSearchParams({
+      limit: String(PAGE), offset: String(page * PAGE),
+      status: tab, ...(dSearch ? { search: dSearch } : {}),
+    });
+    try {
+      const res = await fetch(`/api/admin/lgas?${params}`, {
+        headers: { "x-admin-secret": ADMIN_SECRET },
+      });
+      const data = await res.json();
+      setLgas(data.lgas ?? []);
+      setTotal(data.total ?? 0);
+    } catch {
+      toast.error("Failed to load LGAs.");
+    } finally {
+      setLoading(false);
+    }
+  }, [tab, dSearch, page]);
+
+  useEffect(() => { fetchLgas(); }, [fetchLgas]);
+
+  const approve = async (id: string) => {
+    setActing(id);
+    try {
+      const res = await fetch(`/api/admin/lgas/${id}/approve`, {
+        method: "POST",
+        headers: { "x-admin-secret": ADMIN_SECRET },
+      });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error); return; }
+      toast.success(data.message);
+      fetchLgas();
+    } catch { toast.error("Action failed."); }
+    finally { setActing(null); }
+  };
+
+  const reject = async () => {
+    if (!rejectId || rejectReason.length < 10) {
+      toast.error("Rejection reason must be at least 10 characters.");
+      return;
+    }
+    setActing(rejectId);
+    try {
+      const res = await fetch(`/api/admin/lgas/${rejectId}/reject`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-secret": ADMIN_SECRET },
+        body: JSON.stringify({ reason: rejectReason }),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error); return; }
+      toast.success(data.message);
+      setRejectId(null);
+      setRejectReason("");
+      fetchLgas();
+    } catch { toast.error("Action failed."); }
+    finally { setActing(null); }
+  };
+
+  return (
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">LGA Approvals</h1>
+          <p className="text-slate-500 text-sm mt-0.5">{total.toLocaleString()} total registrations</p>
+        </div>
+      </div>
+
+      {/* Status tabs */}
+      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl mb-5 overflow-x-auto">
+        {STATUS_TABS.map(({ label, value, color }) => (
+          <button
+            key={value}
+            onClick={() => setTab(value)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+              tab === value ? "bg-white shadow-sm text-slate-900" : `${color} hover:bg-white/60`
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div className="flex gap-3 mb-5">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+          <input
+            type="text"
+            placeholder="Search LGA name…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-100"
+          />
+        </div>
+      </div>
+
+      {/* Table */}
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-sm">
+        {loading ? (
+          <div className="divide-y divide-slate-100">
+            {[0,1,2,3,4].map((i) => (
+              <div key={i} className="h-16 px-6 flex items-center gap-4 animate-pulse">
+                <div className="h-8 w-8 rounded-xl bg-slate-100" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3.5 bg-slate-100 rounded w-48" />
+                  <div className="h-3 bg-slate-100 rounded w-32" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : lgas.length === 0 ? (
+          <div className="py-20 text-center">
+            <Building2 className="h-8 w-8 text-slate-200 mx-auto mb-3" />
+            <p className="text-slate-500 text-sm">No LGAs found</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {lgas.map((lga) => (
+              <div key={lga.id}>
+                {/* Row */}
+                <div className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50 transition-colors">
+                  <div className="h-9 w-9 rounded-xl bg-green-100 flex items-center justify-center text-green-700 font-bold text-sm shrink-0">
+                    {lga.lgaName.charAt(0)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-slate-900 truncate">{lga.lgaName} LGA</span>
+                      {lga.isVerified && <BadgeCheck className="h-3.5 w-3.5 text-green-600 shrink-0" />}
+                      <StatusBadge status={lga.status} />
+                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {lga.state} · {lga.chairmanName} · {lga._count.verificationDocs} doc{lga._count.verificationDocs !== 1 ? "s" : ""}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {lga.status === "PENDING" && (
+                      <>
+                        <button
+                          onClick={() => approve(lga.id)}
+                          disabled={acting === lga.id}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-700 hover:bg-green-800 text-white text-xs font-semibold transition-colors disabled:opacity-50"
+                        >
+                          <CheckCircle className="h-3.5 w-3.5" />
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => setRejectId(lga.id)}
+                          className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 text-xs font-semibold transition-colors"
+                        >
+                          <XCircle className="h-3.5 w-3.5" />
+                          Reject
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => setExpandedId(expandedId === lga.id ? null : lga.id)}
+                      className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400"
+                    >
+                      <ChevronDown className={`h-4 w-4 transition-transform ${expandedId === lga.id ? "rotate-180" : ""}`} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Expanded detail */}
+                <AnimatePresence>
+                  {expandedId === lga.id && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: "auto", opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.2 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="px-5 pb-4 bg-slate-50 border-t border-slate-100">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-4 text-xs text-slate-600">
+                          <div><span className="font-medium">Email:</span> {lga.email}</div>
+                          <div><span className="font-medium">Phone:</span> {lga.phone}</div>
+                          <div><span className="font-medium">Tenure:</span> {lga.tenureStatus}</div>
+                          <div><span className="font-medium">Free Until:</span> {lga.freeUntil ? new Date(lga.freeUntil).toLocaleDateString() : "N/A"}</div>
+                          <div><span className="font-medium">Registered:</span> {new Date(lga.createdAt).toLocaleDateString()}</div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Pagination */}
+      {Math.ceil(total / PAGE) > 1 && (
+        <div className="mt-6 flex items-center justify-between">
+          <p className="text-sm text-slate-500">
+            Showing {page * PAGE + 1}–{Math.min((page + 1) * PAGE, total)} of {total}
+          </p>
+          <div className="flex gap-2">
+            <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
+              className="px-4 py-2 rounded-xl border border-slate-200 text-sm disabled:opacity-40 hover:border-green-400 transition-colors">
+              ← Prev
+            </button>
+            <button onClick={() => setPage((p) => p + 1)} disabled={(page + 1) * PAGE >= total}
+              className="px-4 py-2 rounded-xl border border-slate-200 text-sm disabled:opacity-40 hover:border-green-400 transition-colors">
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Reject modal */}
+      <AnimatePresence>
+        {rejectId && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center p-4"
+            onClick={(e) => { if (e.target === e.currentTarget) { setRejectId(null); setRejectReason(""); } }}
+          >
+            <motion.div
+              initial={{ scale: 0.96, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.96, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="h-10 w-10 rounded-xl bg-red-100 flex items-center justify-center">
+                  <AlertCircle className="h-5 w-5 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-slate-900">Reject LGA Registration</h3>
+                  <p className="text-xs text-slate-500">The chairman will receive an email with your reason</p>
+                </div>
+              </div>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="Enter reason for rejection (min 10 characters)…"
+                rows={4}
+                className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-100 resize-none mb-4"
+              />
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setRejectId(null); setRejectReason(""); }}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={reject}
+                  disabled={rejectReason.length < 10 || !!acting}
+                  className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors disabled:opacity-50"
+                >
+                  Confirm Rejection
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}

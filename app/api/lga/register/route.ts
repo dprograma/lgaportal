@@ -121,7 +121,7 @@ export async function POST(request: Request) {
     await sendLGAVerificationEmail(sanitizedEmail, sanitizeInput(chairmanName), sanitizeInput(lgaName), token);
 
     return NextResponse.json(
-      { success: true, message: "LGA registered. Please verify your email." },
+      { success: true, lgaId: lga.id, message: "LGA registered. Please verify your email." },
       { status: 201 }
     );
   } catch (error) {
