@@ -10,10 +10,11 @@ import { cn } from "@/lib/utils";
 const navLinks = [
   { label: "Home",        href: "/" },
   { label: "Explore LGAs",href: "/#explore" },
+  { label: "Map",         href: "/map" },
   { label: "Projects",    href: "/projects" },
+  { label: "Allocations", href: "/allocations" },
   { label: "News",        href: "/news" },
   { label: "How It Works",href: "/#how-it-works" },
-  { label: "Contact",     href: "/contact" },
 ];
 
 const signInOptions = [

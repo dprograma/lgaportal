@@ -172,6 +172,7 @@ model LGA {
   posts            Post[]
   staff            LGAStaff[]
   tenures          LGATenure[]
+  projects         Project[]
 
   @@unique([lgaName, state])
   @@map("lgas")
@@ -495,4 +496,97 @@ model LGATenure {
   lga            LGA       @relation(fields: [lgaId], references: [id], onDelete: Cascade)
 
   @@map("lga_tenures")
+}
+
+// ─── Projects (FR-05/FR-06) ───────────────────────────────────────────────────
+
+enum ProjectCategory {
+  ROADS_INFRASTRUCTURE
+  HEALTH
+  EDUCATION
+  WATER
+  AGRICULTURE
+  OTHER
+}
+
+enum ProjectStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+model Project {
+  id              String          @id @default(cuid())
+  lgaId           String
+  title           String
+  description     String          @db.Text
+  category        ProjectCategory @default(OTHER)
+  status          ProjectStatus   @default(PENDING)
+  latitude        Float?
+  longitude       Float?
+  budget          BigInt?
+  startDate       DateTime?
+  expectedEndDate DateTime?
+  images          String[]
+  videoUrl        String?
+  isArchived      Boolean         @default(false)
+  isPublished     Boolean         @default(false)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  lga             LGA              @relation(fields: [lgaId], references: [id], onDelete: Cascade)
+  statusLogs      ProjectStatusLog[]
+
+  @@map("projects")
+}
+
+model ProjectStatusLog {
+  id         String   @id @default(cuid())
+  projectId  String
+  oldStatus  String
+  newStatus  String
+  changedBy  String
+  note       String?
+  createdAt  DateTime @default(now())
+
+  project    Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("project_status_logs")
+}
+
+// ─── Federal Allocation Tracking (FR-04) ─────────────────────────────────────
+
+model AllocationRecord {
+  id          String    @id @default(cuid())
+  lgaName     String
+  state       String
+  month       Int
+  year        Int
+  amount      BigInt
+  source      String?
+  isPublished Boolean   @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([lgaName, state, month, year])
+  @@map("allocation_records")
+}
+
+model AllocationArticle {
+  id          String    @id @default(cuid())
+  title       String
+  slug        String    @unique
+  content     String    @db.Text
+  month       Int?
+  year        Int?
+  coverImage  String?
+  attachments String[]
+  status      String    @default("DRAFT")
+  scheduledAt DateTime?
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@map("allocation_articles")
 }
