@@ -18,7 +18,7 @@ const schema = z.object({
   name:       z.string().min(2, "Name must be at least 2 characters"),
   email:      z.email("Valid email required"),
   phone:      z.string().optional(),
-  role:       z.string().default("STAFF"),
+  role:       z.string().min(1, "Role is required"),
   canPublish: z.boolean(),
   password:   z.string().min(8, "Password must be at least 8 characters"),
 });
