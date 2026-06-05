@@ -143,9 +143,7 @@ function CompareAllocationsInner() {
   }
 
   async function exportPNG() {
-    if (!chartRef.current) return;
     try {
-      // Use browser print as fallback since html2canvas may not be installed
       window.print();
     } catch {
       alert("Use browser print (Ctrl+P) to save as PDF/image.");
