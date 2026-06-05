@@ -1,67 +1,96 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
 
-const schema = z.object({
-  postId: z.string().min(1),
-  type:   z.enum(["LIKE", "DISLIKE"]),
-});
+// GET /api/reactions?contentId=&contentType=post|project
+export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const contentId = searchParams.get("contentId");
+  const contentType = searchParams.get("contentType");
 
-// POST /api/reactions  — toggle like or dislike
+  if (!contentId || !contentType) {
+    return NextResponse.json({ error: "contentId and contentType are required." }, { status: 400 });
+  }
+
+  const idField = contentType === "project" ? "projectId" : "postId";
+  const reactions = await db.reaction.findMany({
+    where: { [idField]: contentId },
+    select: { type: true },
+  });
+
+  const counts: Record<string, number> = {};
+  for (const r of reactions) {
+    counts[r.type] = (counts[r.type] ?? 0) + 1;
+  }
+
+  return NextResponse.json({ counts });
+}
+
+// POST /api/reactions — auth required, upsert reaction
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Login required to react to posts." }, { status: 401 });
+    return NextResponse.json({ error: "Login required to react." }, { status: 401 });
   }
 
-  let body: unknown;
-  try { body = await req.json(); } catch {
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const result = schema.safeParse(body);
-  if (!result.success) {
-    return NextResponse.json({ error: result.error.issues[0].message }, { status: 422 });
+  const { contentId, contentType, type } = body as {
+    contentId?: string;
+    contentType?: string;
+    type?: string;
+  };
+
+  if (!contentId || !contentType || !type) {
+    return NextResponse.json({ error: "contentId, contentType, and type are required." }, { status: 422 });
   }
 
-  const { postId, type } = result.data;
+  const validTypes = ["LIKE", "DISLIKE", "SUPPORT", "QUESTION", "REPORT"];
+  if (!validTypes.includes(type)) {
+    return NextResponse.json({ error: "Invalid reaction type." }, { status: 422 });
+  }
+
   const userId = session.user.id;
+  const idField = contentType === "project" ? "projectId" : "postId";
 
-  // Check post exists
-  const post = await db.post.findUnique({ where: { id: postId }, select: { id: true } });
-  if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 });
-
-  // Find existing reaction
-  const existing = await db.reaction.findUnique({
-    where: { postId_userId: { postId, userId } },
+  const existing = await db.reaction.findFirst({
+    where: { userId, [idField]: contentId },
   });
 
   if (existing) {
     if (existing.type === type) {
-      // Same type → remove (toggle off)
-      await db.reaction.delete({ where: { postId_userId: { postId, userId } } });
+      await db.reaction.delete({ where: { id: existing.id } });
     } else {
-      // Different type → switch
       await db.reaction.update({
-        where: { postId_userId: { postId, userId } },
-        data: { type },
+        where: { id: existing.id },
+        data: { type: type as never },
       });
     }
   } else {
-    // No reaction → create
-    await db.reaction.create({ data: { postId, userId, type } });
+    await db.reaction.create({
+      data: { userId, [idField]: contentId, type: type as never },
+    });
   }
 
-  // Return fresh counts + user's current reaction
-  const [likes, dislikes, myReaction] = await Promise.all([
-    db.reaction.count({ where: { postId, type: "LIKE" } }),
-    db.reaction.count({ where: { postId, type: "DISLIKE" } }),
-    db.reaction.findUnique({
-      where: { postId_userId: { postId, userId } },
-      select: { type: true },
-    }),
-  ]);
+  // Return fresh counts
+  const allReactions = await db.reaction.findMany({
+    where: { [idField]: contentId },
+    select: { type: true },
+  });
+  const counts: Record<string, number> = {};
+  for (const r of allReactions) {
+    counts[r.type] = (counts[r.type] ?? 0) + 1;
+  }
 
-  return NextResponse.json({ likes, dislikes, myReaction: myReaction?.type ?? null });
+  const myReaction = await db.reaction.findFirst({
+    where: { userId, [idField]: contentId },
+    select: { type: true },
+  });
+
+  return NextResponse.json({ counts, myReaction: myReaction?.type ?? null });
 }

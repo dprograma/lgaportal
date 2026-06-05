@@ -43,6 +43,7 @@ model User {
   isActive            Boolean   @default(true)
   isBanned            Boolean   @default(false)
   banReason           String?
+  suspendedUntil      DateTime?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
@@ -54,6 +55,7 @@ model User {
   comments            Comment[]
   feedbacks           Feedback[]
   flags               FlagReport[]
+  moderationActions   ModerationAction[]
 
   @@map("users")
 }
@@ -289,9 +291,13 @@ enum PostStatus {
 enum ReactionType {
   LIKE
   DISLIKE
+  SUPPORT
+  QUESTION
+  REPORT
 }
 
 enum FlagReason {
+  MISLEADING
   INAPPROPRIATE
   MISINFORMATION
   SPAM
@@ -320,30 +326,40 @@ model Post {
 
 model Reaction {
   id        String       @id @default(cuid())
-  postId    String
+  postId    String?
+  projectId String?
   userId    String
   type      ReactionType
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
 
-  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post    Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([postId, userId])
+  @@unique([projectId, userId])
   @@map("reactions")
 }
 
 model Comment {
-  id        String   @id @default(cuid())
-  postId    String
+  id        String    @id @default(cuid())
+  postId    String?
+  projectId String?
   userId    String
-  content   String   @db.Text
-  isHidden  Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  content   String    @db.Text
+  parentId  String?
+  editedAt  DateTime?
+  modStatus String    @default("APPROVED")
+  isHidden  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post    Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  project Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("replies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies Comment[] @relation("replies")
 
   @@map("comments")
 }
@@ -365,18 +381,24 @@ model Feedback {
 }
 
 model FlagReport {
-  id         String     @id @default(cuid())
-  postId     String
-  userId     String
-  reason     FlagReason
-  details    String?    @db.Text
-  isReviewed Boolean    @default(false)
-  createdAt  DateTime   @default(now())
+  id          String     @id @default(cuid())
+  postId      String?
+  projectId   String?
+  commentId   String?
+  contentType String     @default("post")
+  userId      String
+  reason      FlagReason
+  details     String?    @db.Text
+  status      String     @default("PENDING")
+  resolvedAt  DateTime?
+  resolvedBy  String?
+  isReviewed  Boolean    @default(false)
+  createdAt   DateTime   @default(now())
 
-  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post    Post?    @relation(fields: [postId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([postId, userId])
   @@map("flag_reports")
 }
 
@@ -516,26 +538,34 @@ enum ProjectStatus {
 }
 
 model Project {
-  id              String          @id @default(cuid())
-  lgaId           String
-  title           String
-  description     String          @db.Text
-  category        ProjectCategory @default(OTHER)
-  status          ProjectStatus   @default(PENDING)
-  latitude        Float?
-  longitude       Float?
-  budget          BigInt?
-  startDate       DateTime?
-  expectedEndDate DateTime?
-  images          String[]
-  videoUrl        String?
-  isArchived      Boolean         @default(false)
-  isPublished     Boolean         @default(false)
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
+  id               String          @id @default(cuid())
+  lgaId            String
+  slug             String?         @unique
+  title            String
+  description      String          @db.Text
+  category         ProjectCategory @default(OTHER)
+  status           ProjectStatus   @default(PENDING)
+  approvalStatus   String          @default("APPROVED")
+  submittedByStaff String?
+  latitude         Float?
+  longitude        Float?
+  budget           BigInt?
+  startDate        DateTime?
+  expectedEndDate  DateTime?
+  images           String[]
+  videoUrl         String?
+  shareCount       Int             @default(0)
+  reportCount      Int             @default(0)
+  isArchived       Boolean         @default(false)
+  isPublished      Boolean         @default(false)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
 
-  lga             LGA              @relation(fields: [lgaId], references: [id], onDelete: Cascade)
-  statusLogs      ProjectStatusLog[]
+  lga        LGA                @relation(fields: [lgaId], references: [id], onDelete: Cascade)
+  statusLogs ProjectStatusLog[]
+  reactions  Reaction[]
+  comments   Comment[]
+  flags      FlagReport[]
 
   @@map("projects")
 }
@@ -571,6 +601,23 @@ model AllocationRecord {
 
   @@unique([lgaName, state, month, year])
   @@map("allocation_records")
+}
+
+// ─── Moderation (FR-07-06) ────────────────────────────────────────────────────
+
+model ModerationAction {
+  id         String   @id @default(cuid())
+  adminId    String
+  targetType String
+  targetId   String
+  action     String
+  reason     String
+  duration   Int?
+  createdAt  DateTime @default(now())
+
+  admin User @relation(fields: [adminId], references: [id])
+
+  @@map("moderation_actions")
 }
 
 model AllocationArticle {

@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Building2, Clock, ShieldCheck, LogOut, BarChart2 } from "lucide-react";
+import { LayoutDashboard, Building2, Clock, ShieldCheck, LogOut, BarChart2, ShieldAlert } from "lucide-react";
 
 const navItems = [
   { href: "/admin",              label: "Overview",       icon: LayoutDashboard },
   { href: "/admin/lgas",         label: "LGA Approvals",  icon: Building2       },
   { href: "/admin/expiring",     label: "Expiring Trials",icon: Clock           },
   { href: "/admin/allocations",  label: "Allocations",    icon: BarChart2       },
+  { href: "/admin/moderation",   label: "Moderation",     icon: ShieldAlert     },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

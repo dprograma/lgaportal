@@ -1,80 +1,142 @@
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
 
-// GET /api/comments?postId=...&limit=20&offset=0
+const PAGE_SIZE = 10;
+
+// GET /api/comments?contentId=&contentType=&page=
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const postId = searchParams.get("postId");
-  const take   = Math.min(parseInt(searchParams.get("limit")  ?? "20"), 50);
-  const skip   = parseInt(searchParams.get("offset") ?? "0");
+  const contentId = searchParams.get("contentId");
+  const contentType = searchParams.get("contentType");
+  const page = Math.max(1, parseInt(searchParams.get("page") ?? "1"));
+  const skip = (page - 1) * PAGE_SIZE;
 
-  if (!postId) {
-    return NextResponse.json({ error: "postId is required." }, { status: 400 });
+  if (!contentId || !contentType) {
+    return NextResponse.json({ error: "contentId and contentType are required." }, { status: 400 });
   }
+
+  const idField = contentType === "project" ? "projectId" : "postId";
+
+  // Top-level comments only (no parentId), not hidden, not rejected
+  const where = {
+    [idField]: contentId,
+    parentId: null,
+    isHidden: false,
+    modStatus: { not: "REJECTED" },
+  };
 
   const [comments, total] = await Promise.all([
     db.comment.findMany({
-      where: { postId, isHidden: false },
-      orderBy: { createdAt: "asc" },
-      take,
+      where,
+      orderBy: { createdAt: "desc" },
+      take: PAGE_SIZE,
       skip,
       select: {
-        id:        true,
-        content:   true,
+        id: true,
+        content: true,
         createdAt: true,
+        editedAt: true,
+        userId: true,
         user: { select: { id: true, name: true, image: true } },
+        replies: {
+          where: { isHidden: false, modStatus: { not: "REJECTED" } },
+          orderBy: { createdAt: "asc" },
+          select: {
+            id: true,
+            content: true,
+            createdAt: true,
+            editedAt: true,
+            userId: true,
+            user: { select: { id: true, name: true, image: true } },
+          },
+        },
       },
     }),
-    db.comment.count({ where: { postId, isHidden: false } }),
+    db.comment.count({ where }),
   ]);
 
-  return NextResponse.json({ comments, total });
+  return NextResponse.json({ comments, total, page, pages: Math.ceil(total / PAGE_SIZE) });
 }
 
-// POST /api/comments
-const schema = z.object({
-  postId:  z.string().min(1),
-  content: z.string()
-    .min(1, "Comment cannot be empty.")
-    .max(500, "Comment must not exceed 500 characters."),
-});
-
+// POST /api/comments — auth required
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Login required to comment." }, { status: 401 });
   }
 
-  let body: unknown;
-  try { body = await req.json(); } catch {
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const result = schema.safeParse(body);
-  if (!result.success) {
-    return NextResponse.json({ error: result.error.issues[0].message }, { status: 422 });
+  const { contentId, contentType, content, parentId } = body as {
+    contentId?: string;
+    contentType?: string;
+    content?: string;
+    parentId?: string;
+  };
+
+  if (!contentId || !contentType || !content) {
+    return NextResponse.json({ error: "contentId, contentType, and content are required." }, { status: 422 });
   }
 
-  const { postId, content } = result.data;
+  if (content.length > 500) {
+    return NextResponse.json({ error: "Comment must not exceed 500 characters." }, { status: 422 });
+  }
 
-  // Verify post exists and is published
-  const post = await db.post.findUnique({
-    where: { id: postId, status: "PUBLISHED" },
-    select: { id: true },
-  });
-  if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 });
+  if (content.trim().length === 0) {
+    return NextResponse.json({ error: "Comment cannot be empty." }, { status: 422 });
+  }
+
+  const idField = contentType === "project" ? "projectId" : "postId";
+
+  // Moderation via OpenAI
+  let modStatus = "APPROVED";
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (apiKey) {
+    try {
+      const modRes = await fetch("https://api.openai.com/v1/moderations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({ input: content }),
+      });
+      if (modRes.ok) {
+        const modData = await modRes.json() as { results: Array<{ flagged: boolean }> };
+        if (modData.results?.[0]?.flagged) {
+          modStatus = "HELD";
+        }
+      }
+    } catch {
+      // Skip moderation on error
+    }
+  }
 
   const comment = await db.comment.create({
-    data: { postId, userId: session.user.id, content: content.trim() },
+    data: {
+      [idField]: contentId,
+      userId: session.user.id,
+      content: content.trim(),
+      parentId: parentId ?? null,
+      modStatus,
+    },
     select: {
-      id:        true,
-      content:   true,
+      id: true,
+      content: true,
       createdAt: true,
+      editedAt: true,
+      userId: true,
+      modStatus: true,
       user: { select: { id: true, name: true, image: true } },
     },
   });
 
-  return NextResponse.json({ comment }, { status: 201 });
+  const status = modStatus === "HELD" ? 202 : 201;
+  return NextResponse.json({ comment, held: modStatus === "HELD" }, { status });
 }
