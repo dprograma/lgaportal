@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, TrendingUp, FileText, MessageSquare,
-  Settings, LogOut, Shield, Users, Newspaper, UserCog, CalendarClock,
+  Settings, LogOut, Shield, Users, Newspaper, UserCog, CalendarClock, CreditCard,
 } from "lucide-react";
 
 const navItems = [
@@ -16,6 +16,7 @@ const navItems = [
   { href: "/lga-dashboard/inquiries",   label: "Investor Inquiries", icon: MessageSquare   },
   { href: "/lga-dashboard/staff",       label: "Staff Management",   icon: UserCog         },
   { href: "/lga-dashboard/tenure",      label: "Tenure",             icon: CalendarClock   },
+  { href: "/lga-dashboard/payments",    label: "Payments",           icon: CreditCard      },
   { href: "/lga-dashboard/settings",    label: "Settings",           icon: Settings        },
 ];
 

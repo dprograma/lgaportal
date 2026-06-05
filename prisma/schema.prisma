@@ -44,6 +44,10 @@ model User {
   isBanned            Boolean   @default(false)
   banReason           String?
   suspendedUntil      DateTime?
+  // Advertiser profile fields
+  advertiserCompany   String?
+  advertiserPhone     String?
+  advertiserWebsite   String?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
@@ -56,6 +60,7 @@ model User {
   feedbacks           Feedback[]
   flags               FlagReport[]
   moderationActions   ModerationAction[]
+  adCampaigns         AdCampaign[]
 
   @@map("users")
 }
@@ -636,4 +641,101 @@ model AllocationArticle {
   updatedAt   DateTime  @updatedAt
 
   @@map("allocation_articles")
+}
+
+// ─── Advertising (FR-08) ──────────────────────────────────────────────────────
+
+model AdPlan {
+  id             String   @id @default(cuid())
+  name           String   @unique
+  description    String   @db.Text
+  price          BigInt   // in kobo
+  durationDays   Int      // subscription duration
+  formats        String[] // BANNER | SIDEBAR | SPONSORED | FEATURED
+  placements     String[] // e.g. HOMEPAGE_TOP, LGA_SIDEBAR, NEWS_FEED
+  maxImpressions Int?     // null = unlimited
+  isActive       Boolean  @default(true)
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  campaigns AdCampaign[]
+
+  @@map("ad_plans")
+}
+
+model AdCampaign {
+  id              String    @id @default(cuid())
+  advertiserId    String
+  planId          String
+  title           String
+  description     String?   @db.Text
+  format          String    // BANNER | SIDEBAR | SPONSORED | FEATURED
+  placement       String    // specific slot
+  creativeUrl     String?
+  linkUrl         String
+  status          String    @default("PENDING_REVIEW")
+  // PENDING_REVIEW | APPROVED | ACTIVE | PAUSED | EXPIRED | CANCELLED | REJECTED
+  impressions     Int       @default(0)
+  clicks          Int       @default(0)
+  startDate       DateTime?
+  endDate         DateTime?
+  rejectionReason String?   @db.Text
+  paystackRef     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  advertiser     User           @relation(fields: [advertiserId], references: [id])
+  plan           AdPlan         @relation(fields: [planId], references: [id])
+  impressionLogs AdImpression[]
+
+  @@map("ad_campaigns")
+}
+
+model AdImpression {
+  id         String   @id @default(cuid())
+  campaignId String
+  ip         String?
+  userAgent  String?
+  pageUrl    String?
+  createdAt  DateTime @default(now())
+
+  campaign AdCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@map("ad_impressions")
+}
+
+// ─── Payments (FR-09) ─────────────────────────────────────────────────────────
+
+model Transaction {
+  id            String    @id @default(cuid())
+  userId        String?
+  lgaId         String?
+  campaignId    String?
+  amount        BigInt
+  purpose       String    // LGA_SUBSCRIPTION | LGA_RENEWAL | AD_CAMPAIGN
+  status        String    @default("PENDING") // PENDING | SUCCESS | FAILED | REVERSED
+  paystackRef   String?   @unique
+  paystackData  Json?
+  invoiceNumber String?   @unique
+  invoiceUrl    String?
+  metadata      Json?
+  paidAt        DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("transactions")
+}
+
+model EmailNotificationLog {
+  id        String   @id @default(cuid())
+  to        String
+  subject   String
+  purpose   String
+  status    String   @default("SENT") // SENT | FAILED | RETRYING
+  attempts  Int      @default(1)
+  error     String?  @db.Text
+  createdAt DateTime @default(now())
+
+  @@map("email_notification_logs")
 }
