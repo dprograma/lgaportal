@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
   const grouped: Record<string, { name: string; total: bigint; byMonth: { month: number; year: number; amount: bigint }[] }> = {};
   for (const r of records) {
     const key = lgaNames.length > 0 ? r.lgaName : r.state;
-    if (!grouped[key]) grouped[key] = { name: key, total: 0n, byMonth: [] };
+    if (!grouped[key]) grouped[key] = { name: key, total: BigInt(0), byMonth: [] };
     grouped[key].total += r.amount;
     grouped[key].byMonth.push({ month: r.month, year: r.year, amount: r.amount });
   }
