@@ -38,7 +38,7 @@ export async function GET(
   if (transaction.invoiceUrl?.startsWith("data:application/pdf;base64,")) {
     const base64 = transaction.invoiceUrl.replace("data:application/pdf;base64,", "");
     const buffer = Buffer.from(base64, "base64");
-    return new Response(buffer, {
+    return new Response(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="invoice-${transaction.invoiceNumber ?? id}.pdf"`,
@@ -66,7 +66,7 @@ export async function GET(
       purpose: transaction.purpose,
     });
 
-    return new Response(pdfBuffer, {
+    return new Response(new Uint8Array(pdfBuffer), {
       headers: {
         "Content-Type": "application/pdf",
         "Content-Disposition": `attachment; filename="invoice-${transaction.invoiceNumber ?? id}.pdf"`,
