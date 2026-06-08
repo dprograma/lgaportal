@@ -37,8 +37,8 @@ export async function POST(req: NextRequest) {
   if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 });
 
   // One flag per user per post
-  const existing = await db.flagReport.findUnique({
-    where: { postId_userId: { postId, userId } },
+  const existing = await db.flagReport.findFirst({
+    where: { postId, userId },
   });
   if (existing) {
     return NextResponse.json(

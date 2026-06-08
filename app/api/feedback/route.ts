@@ -47,8 +47,8 @@ export async function POST(req: NextRequest) {
   if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 });
 
   // One feedback per user per post
-  const existing = await db.feedback.findUnique({
-    where: { postId_userId: { postId, userId } },
+  const existing = await db.feedback.findFirst({
+    where: { postId, userId },
   });
   if (existing) {
     return NextResponse.json(
