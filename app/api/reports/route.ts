@@ -45,7 +45,11 @@ export async function POST(req: NextRequest) {
   // Create the flag report
   await db.flagReport.create({
     data: {
-      [idField]: contentId,
+      ...(contentType === "project"
+        ? { projectId: contentId }
+        : contentType === "comment"
+        ? { commentId: contentId }
+        : { postId: contentId }),
       contentType,
       userId: session.user.id,
       reason: reason as never,

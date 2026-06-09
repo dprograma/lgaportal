@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
@@ -28,7 +28,15 @@ function slugify(s: string) {
   return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 }
 
-export default function AdminArticleEditorPage() {
+export default function AdminArticleEditorPageWrapper() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-slate-50 flex items-center justify-center"><div className="h-8 w-8 rounded-full border-4 border-slate-200 border-t-green-600 animate-spin" /></div>}>
+      <AdminArticleEditorPage />
+    </Suspense>
+  );
+}
+
+function AdminArticleEditorPage() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const editId       = searchParams.get("id"); // edit mode if present

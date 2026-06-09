@@ -73,7 +73,7 @@ export async function POST(req: NextRequest) {
       data: {
         status: "SUCCESS",
         paidAt: paidAt ? new Date(paidAt) : new Date(),
-        paystackData: data,
+        paystackData: JSON.parse(JSON.stringify(data)),
         invoiceUrl,
       },
     });
@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
     const reference = data.reference as string;
     await db.transaction.updateMany({
       where: { paystackRef: reference, status: "PENDING" },
-      data: { status: "FAILED", paystackData: data },
+      data: { status: "FAILED", paystackData: JSON.parse(JSON.stringify(data)) },
     });
   }
 

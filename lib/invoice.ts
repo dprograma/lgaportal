@@ -1,9 +1,8 @@
 /**
  * Server-side PDF invoice generation using PDFKit.
  * Returns a Buffer containing the PDF bytes.
+ * pdfkit is required dynamically to prevent Turbopack from bundling native Node.js modules.
  */
-// @ts-expect-error — pdfkit types loaded dynamically
-import PDFDocument from "pdfkit";
 
 interface InvoiceData {
   invoiceNumber: string;
@@ -32,6 +31,8 @@ function formatNaira(kobo: bigint | number): string {
 export function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const PDFDocument = require("pdfkit") as typeof import("pdfkit");
       const doc = new PDFDocument({ size: "A4", margin: 50 });
       const chunks: Buffer[] = [];
 

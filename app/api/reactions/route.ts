@@ -73,7 +73,13 @@ export async function POST(req: NextRequest) {
     }
   } else {
     await db.reaction.create({
-      data: { userId, [idField]: contentId, type: type as never },
+      data: {
+        userId,
+        type: type as never,
+        ...(contentType === "project"
+          ? { projectId: contentId }
+          : { postId: contentId }),
+      },
     });
   }
 

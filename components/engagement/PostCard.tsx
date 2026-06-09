@@ -234,6 +234,8 @@ export default function PostCard({ post }: Props) {
               className="overflow-hidden"
             >
               <CommentSection
+                contentId={post.id}
+                contentType="post"
                 postId={post.id}
                 isLoggedIn={isLoggedIn}
                 onLoginRequired={() => requireLogin("comment on posts")}

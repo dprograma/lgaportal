@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
         where: { id: transaction.id },
         data: {
           status: dbStatus,
-          paystackData: result.data as unknown as Record<string, unknown>,
+          paystackData: JSON.parse(JSON.stringify(result.data)),
           paidAt: paystackStatus === "success" ? new Date(result.data.paid_at) : null,
         },
       });

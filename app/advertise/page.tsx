@@ -2,6 +2,8 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { CheckCircle, ChevronDown } from "lucide-react";
 
+export const dynamic = "force-dynamic";
+
 function formatNaira(kobo: bigint | number) {
   return new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN" }).format(
     Number(kobo) / 100

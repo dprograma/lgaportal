@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
 
   const reactionMap: Record<string, { likes: number; dislikes: number }> = {};
   for (const r of rawReactions) {
+    if (!r.postId) continue;
     if (!reactionMap[r.postId]) reactionMap[r.postId] = { likes: 0, dislikes: 0 };
     if (r.type === "LIKE")    reactionMap[r.postId].likes    = r._count.type;
     if (r.type === "DISLIKE") reactionMap[r.postId].dislikes = r._count.type;
