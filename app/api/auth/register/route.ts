@@ -80,14 +80,22 @@ export async function POST(request: Request) {
     });
 
     // Send verification email (non-fatal — user can request resend)
+    let emailSent = true;
     try {
       await sendVerificationEmail(user.email, user.name, token);
     } catch (emailErr) {
+      emailSent = false;
       console.error("[POST /api/auth/register] email send failed:", emailErr);
     }
 
     return NextResponse.json(
-      { success: true, message: "Account created. Please check your email to verify your account." },
+      {
+        success: true,
+        emailSent,
+        message: emailSent
+          ? "Account created. Please check your email to verify your account."
+          : "Account created. Verification email could not be sent — please use 'Resend verification' on the login page.",
+      },
       { status: 201 }
     );
   } catch (error) {

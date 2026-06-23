@@ -127,7 +127,11 @@ export default function SignupPage() {
         toast.error(json.error ?? "Registration failed. Please try again.");
         return;
       }
-      toast.success("Account created! Please verify your email.");
+      if (json.emailSent === false) {
+        toast.warning("Account created! Verification email could not be sent — contact support or try resending later.");
+      } else {
+        toast.success("Account created! Please check your email to verify your account.");
+      }
       router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
     } catch {
       toast.error("Something went wrong. Please try again.");

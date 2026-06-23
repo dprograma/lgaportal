@@ -74,12 +74,12 @@ function LoginContent() {
         return;
       }
 
-      // Send OTP then redirect to verify
-      await fetch("/api/otp/send", {
+      // Fire OTP send — non-blocking; verify page has a resend button
+      fetch("/api/otp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ identifier: data.email, purpose: "CITIZEN_LOGIN" }),
-      });
+      }).catch(() => { /* ignore — user can resend from verify page */ });
       router.push(`/verify-otp?email=${encodeURIComponent(data.email)}&purpose=CITIZEN_LOGIN&next=${encodeURIComponent(callbackUrl)}`);
     } catch {
       toast.error("Something went wrong. Please try again.");
