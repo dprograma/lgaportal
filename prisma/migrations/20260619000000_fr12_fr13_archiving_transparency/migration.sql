@@ -2,9 +2,16 @@
 
 -- ── 1. Link posts to chairman tenure ──────────────────────────────────────────
 ALTER TABLE "posts" ADD COLUMN IF NOT EXISTS "tenureId" TEXT;
-ALTER TABLE "posts"
-  ADD CONSTRAINT IF NOT EXISTS "posts_tenureId_fkey"
-  FOREIGN KEY ("tenureId") REFERENCES "lga_tenures"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+DO $$ BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE constraint_name = 'posts_tenureId_fkey' AND table_name = 'posts'
+  ) THEN
+    ALTER TABLE "posts"
+      ADD CONSTRAINT "posts_tenureId_fkey"
+      FOREIGN KEY ("tenureId") REFERENCES "lga_tenures"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+  END IF;
+END $$;
 
 -- ── 2. Procurement contracts (FR-13-02) ───────────────────────────────────────
 CREATE TABLE IF NOT EXISTS "procurement_contracts" (
