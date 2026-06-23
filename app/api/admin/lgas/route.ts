@@ -19,9 +19,12 @@ export async function GET(req: NextRequest) {
   const take   = Math.min(parseInt(searchParams.get("limit") ?? "25"), 100);
   const skip   = parseInt(searchParams.get("offset") ?? "0");
 
+  const stateParam = searchParams.get("state") ?? undefined;
+
   const where: Record<string, unknown> = {};
   if (status && status !== "ALL") where.status = status;
-  if (search) where.lgaName = { contains: search, mode: "insensitive" };
+  if (search)      where.lgaName = { contains: search, mode: "insensitive" };
+  if (stateParam)  where.state   = { contains: stateParam, mode: "insensitive" };
 
   const [lgas, total] = await Promise.all([
     db.lGA.findMany({

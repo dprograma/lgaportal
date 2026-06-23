@@ -43,9 +43,12 @@ export async function GET(req: NextRequest) {
 
   const result = Object.values(grouped).map((g) => ({
     name: g.name,
-    total: g.total.toString(),
-    byMonth: g.byMonth.map((m) => ({ ...m, amount: m.amount.toString() })),
+    total: Number(g.total),
+    byMonth: g.byMonth.map((m) => ({
+      label: `${m.year}-${String(m.month).padStart(2, "0")}`,
+      amount: Number(m.amount),
+    })),
   }));
 
-  return NextResponse.json({ data: result });
+  return NextResponse.json({ results: result });
 }

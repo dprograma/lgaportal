@@ -47,9 +47,7 @@ function AddRecordModal({ onClose, onAdded }: { onClose: () => void; onAdded: ()
     const r = await fetch("/api/admin/allocations", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-admin-secret": getAdminSecret() },
-      body: JSON.stringify({
-        records: [{ lgaName: form.lgaName, state: form.state, month: Number(form.month), year: Number(form.year), amount: parseFloat(form.amount), source: form.source || null }],
-      }),
+      body: JSON.stringify({ lgaName: form.lgaName, state: form.state, month: Number(form.month), year: Number(form.year), amount: parseFloat(form.amount), source: form.source || null }),
     });
     const d = await r.json();
     if (!r.ok) { setError(d.error ?? "Failed to save."); setSaving(false); return; }
@@ -146,7 +144,7 @@ function CSVUploadModal({ onClose, onUploaded }: { onClose: () => void; onUpload
     const r = await fetch("/api/admin/allocations", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-admin-secret": getAdminSecret() },
-      body: JSON.stringify({ records }),
+      body: JSON.stringify(records),
     });
     const d = await r.json();
     if (!r.ok) { setStatus("error"); setMsg(d.error ?? "Upload failed."); return; }

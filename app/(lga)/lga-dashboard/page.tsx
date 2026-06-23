@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   Building2, MapPin, Clock, CheckCircle2, AlertCircle,
   ShieldOff, Users, TrendingUp, FileText, CalendarClock,
-  UserCog, Newspaper, ArrowRight, BadgeCheck,
+  UserCog, Newspaper, ArrowRight, BadgeCheck, BarChart2, CreditCard,
 } from "lucide-react";
 
 function getLgaId(): string {
@@ -23,7 +23,15 @@ interface LGAInfo {
   tenureEndDate: string | null;
   gracePeriodEndsAt: string | null;
   freeUntil: string | null;
+  subscriptionEnd: string | null;
+  subscriptionStatus: string | null;
   _count: { wards: number; endowments: number; staff: number };
+}
+
+interface CitizenStats {
+  total: number;
+  active: number;
+  recent: number;
 }
 
 function daysUntil(date: string) {
@@ -31,16 +39,22 @@ function daysUntil(date: string) {
 }
 
 export default function LGADashboardPage() {
-  const [lga,     setLga]     = useState<LGAInfo | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [lga,      setLga]      = useState<LGAInfo | null>(null);
+  const [citizens, setCitizens] = useState<CitizenStats | null>(null);
+  const [loading,  setLoading]  = useState(true);
 
   useEffect(() => {
     const lgaId = getLgaId();
     if (!lgaId) { setLoading(false); return; }
 
-    fetch("/api/lga-dashboard/overview", { headers: { "x-lga-id": lgaId } })
-      .then((r) => r.json())
-      .then((json) => setLga(json.lga ?? null))
+    Promise.all([
+      fetch("/api/lga-dashboard/overview", { headers: { "x-lga-id": lgaId } }).then((r) => r.json()),
+      fetch("/api/lga-dashboard/citizens",  { headers: { "x-lga-id": lgaId } }).then((r) => r.json()).catch(() => null),
+    ])
+      .then(([overviewJson, citizensJson]) => {
+        setLga(overviewJson.lga ?? null);
+        if (citizensJson && !citizensJson.error) setCitizens(citizensJson);
+      })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
@@ -58,22 +72,28 @@ export default function LGADashboardPage() {
   }
 
   /* ── Status-based banners ──────────────────────────────────────────── */
-  const tenureStatus = lga?.tenureStatus ?? "ACTIVE";
-  const lgaStatus    = lga?.status ?? "PENDING";
-  const endDate      = lga?.tenureEndDate ?? null;
-  const graceEnd     = lga?.gracePeriodEndsAt ?? null;
-  const freeUntil    = lga?.freeUntil ?? null;
+  const tenureStatus  = lga?.tenureStatus ?? "ACTIVE";
+  const lgaStatus     = lga?.status ?? "PENDING";
+  const endDate       = lga?.tenureEndDate ?? null;
+  const graceEnd      = lga?.gracePeriodEndsAt ?? null;
+  const freeUntil     = lga?.freeUntil ?? null;
+  const subEnd        = lga?.subscriptionEnd ?? null;
+  const subStatus     = lga?.subscriptionStatus ?? null;
 
   const daysLeftTenure = endDate ? daysUntil(endDate) : null;
   const graceDays      = graceEnd ? daysUntil(graceEnd) : null;
   const freeDays       = freeUntil ? daysUntil(freeUntil) : null;
 
+  const daysLeftSub = subEnd ? daysUntil(subEnd) : null;
+
   const quickLinks = [
     { href: "/lga-dashboard/posts",      label: "Posts & Updates",    icon: Newspaper,     desc: "Publish news and updates"          },
+    { href: "/lga-dashboard/analytics",  label: "Analytics",          icon: BarChart2,     desc: "Views, reactions & engagement"     },
     { href: "/lga-dashboard/wards",      label: "Wards",              icon: Users,         desc: "Manage ward councillors"            },
     { href: "/lga-dashboard/endowments", label: "Endowments",         icon: TrendingUp,    desc: "Showcase investment opportunities"  },
     { href: "/lga-dashboard/staff",      label: "Staff",              icon: UserCog,       desc: "Manage up to 2 staff accounts"      },
     { href: "/lga-dashboard/tenure",     label: "Tenure",             icon: CalendarClock, desc: "View & renew chairmanship term"     },
+    { href: "/lga-dashboard/payments",   label: "Payments",           icon: CreditCard,    desc: "Subscription & payment history"    },
     { href: "/lga-dashboard/settings",   label: "Settings",           icon: FileText,      desc: "Update LGA profile & documents"    },
   ];
 
@@ -190,13 +210,49 @@ export default function LGADashboardPage() {
         </div>
       )}
 
+      {/* Subscription status card */}
+      {lga && lgaStatus === "APPROVED" && (
+        <div className={`rounded-xl p-4 mb-5 border flex items-center justify-between gap-4 ${
+          subStatus === "active" || (!subEnd && !freeUntil)
+            ? "bg-green-50 border-green-200"
+            : daysLeftSub !== null && daysLeftSub <= 7
+              ? "bg-red-50 border-red-200"
+              : "bg-blue-50 border-blue-200"
+        }`}>
+          <div className="flex items-center gap-3">
+            <CreditCard className={`h-5 w-5 shrink-0 ${
+              daysLeftSub !== null && daysLeftSub <= 7 ? "text-red-500" : "text-blue-600"
+            }`} />
+            <div>
+              <p className="text-sm font-semibold text-slate-800">
+                {freeUntil && !subEnd ? "Free Trial" : subStatus === "active" ? "Subscription Active" : "Subscription"}
+              </p>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {freeUntil && !subEnd
+                  ? `Free until ${new Date(freeUntil).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}`
+                  : subEnd
+                    ? `Renews ${new Date(subEnd).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}`
+                    : "No active subscription"}
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/lga-dashboard/payments"
+            className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-700 hover:bg-green-800 text-white text-xs font-semibold transition-colors"
+          >
+            {subEnd ? "Manage" : "Subscribe"} <ArrowRight className="h-3 w-3" />
+          </Link>
+        </div>
+      )}
+
       {/* Stats row */}
       {lga && (
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
           {[
             { label: "Wards",       value: lga._count.wards,       icon: MapPin    },
             { label: "Endowments",  value: lga._count.endowments,  icon: TrendingUp },
             { label: "Staff",       value: lga._count.staff,       icon: UserCog   },
+            { label: "Citizens",    value: citizens?.total ?? "—",  icon: Users     },
           ].map(({ label, value, icon: Icon }) => (
             <div key={label} className="bg-white border border-slate-200 rounded-2xl p-4 text-center">
               <Icon className="h-4 w-4 text-green-600 mx-auto mb-1.5" />

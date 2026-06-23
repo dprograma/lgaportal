@@ -171,15 +171,19 @@ model LGA {
   createdAt           DateTime   @default(now())
   updatedAt           DateTime   @updatedAt
 
-  chairman         LGAChairman?
-  verificationDocs LGAVerificationDoc[]
-  endowments       LGAEndowment[]
-  inquiries        InvestorInquiry[]
-  wards            Ward[]
-  posts            Post[]
-  staff            LGAStaff[]
-  tenures          LGATenure[]
-  projects         Project[]
+  chairman              LGAChairman?
+  verificationDocs      LGAVerificationDoc[]
+  endowments            LGAEndowment[]
+  inquiries             InvestorInquiry[]
+  wards                 Ward[]
+  posts                 Post[]
+  staff                 LGAStaff[]
+  tenures               LGATenure[]
+  projects              Project[]
+  procurementContracts  ProcurementContract[]
+  auditReports          AuditReport[]
+  pressReleases         PressRelease[]
+  liveStreams            LiveStream[]
 
   @@unique([lgaName, state])
   @@map("lgas")
@@ -311,16 +315,21 @@ enum FlagReason {
 }
 
 model Post {
-  id        String     @id @default(cuid())
-  lgaId     String
-  title     String
-  content   String     @db.Text
-  imageUrl  String?
-  status    PostStatus @default(PUBLISHED)
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
+  id          String     @id @default(cuid())
+  lgaId       String
+  tenureId    String?
+  title       String
+  content     String     @db.Text
+  imageUrl    String?
+  status      PostStatus @default(PUBLISHED)
+  scheduledAt DateTime?
+  publishedAt DateTime?
+  viewCount   Int        @default(0)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
   lga       LGA          @relation(fields: [lgaId], references: [id], onDelete: Cascade)
+  tenure    LGATenure?   @relation(fields: [tenureId], references: [id], onDelete: SetNull)
   reactions Reaction[]
   comments  Comment[]
   feedbacks Feedback[]
@@ -521,6 +530,7 @@ model LGATenure {
   updatedAt      DateTime  @updatedAt
 
   lga            LGA       @relation(fields: [lgaId], references: [id], onDelete: Cascade)
+  posts          Post[]
 
   @@map("lga_tenures")
 }
@@ -738,4 +748,110 @@ model EmailNotificationLog {
   createdAt DateTime @default(now())
 
   @@map("email_notification_logs")
+}
+
+// ─── FR-13: Procurement Contracts ─────────────────────────────────────────────
+
+model ProcurementContract {
+  id          String   @id @default(cuid())
+  lgaId       String
+  title       String
+  contractor  String
+  value       BigInt
+  awardDate   DateTime
+  scope       String   @db.Text
+  source      String?  // BPP | MANUAL
+  isPublished Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  lga LGA @relation(fields: [lgaId], references: [id], onDelete: Cascade)
+
+  @@map("procurement_contracts")
+}
+
+// ─── FR-13: Audit Reports ─────────────────────────────────────────────────────
+
+model AuditReport {
+  id            String   @id @default(cuid())
+  lgaId         String
+  financialYear Int
+  title         String
+  auditingBody  String
+  reportUrl     String
+  isPublished   Boolean  @default(true)
+  uploadedBy    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  lga LGA @relation(fields: [lgaId], references: [id], onDelete: Cascade)
+
+  @@map("audit_reports")
+}
+
+// ─── FR-14: Press Releases ────────────────────────────────────────────────────
+
+enum EntityType {
+  LGA
+  STATE
+  FEDERAL
+}
+
+enum PressStatus {
+  PENDING
+  PUBLISHED
+  REJECTED
+  DRAFT
+}
+
+model PressRelease {
+  id               String      @id @default(cuid())
+  title            String
+  body             String      @db.Text
+  issuingEntity    String
+  entityType       EntityType  @default(LGA)
+  lgaId            String?
+  dateIssued       DateTime    @default(now())
+  attachmentUrl    String?
+  status           PressStatus @default(DRAFT)
+  submittedByRole  String?     // "ADMIN" | "LGA_CHAIRMAN"
+  submittedByLgaId String?
+  approvedAt       DateTime?
+  rejectedReason   String?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  lga LGA? @relation(fields: [lgaId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([lgaId])
+  @@index([entityType])
+  @@map("press_releases")
+}
+
+// ─── FR-14: Live Streams ──────────────────────────────────────────────────────
+
+enum StreamStatus {
+  UPCOMING
+  LIVE
+  ENDED
+}
+
+model LiveStream {
+  id          String       @id @default(cuid())
+  lgaId       String?
+  title       String
+  description String?      @db.Text
+  streamUrl   String
+  scheduledAt DateTime
+  status      StreamStatus @default(UPCOMING)
+  createdBy   String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  lga LGA? @relation(fields: [lgaId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([scheduledAt])
+  @@map("live_streams")
 }

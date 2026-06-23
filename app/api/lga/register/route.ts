@@ -117,8 +117,12 @@ export async function POST(request: Request) {
       },
     });
 
-    // Send LGA verification email
-    await sendLGAVerificationEmail(sanitizedEmail, sanitizeInput(chairmanName), sanitizeInput(lgaName), token);
+    // Send LGA verification email (non-fatal — user can request resend)
+    try {
+      await sendLGAVerificationEmail(sanitizedEmail, sanitizeInput(chairmanName), sanitizeInput(lgaName), token);
+    } catch (emailErr) {
+      console.error("[POST /api/lga/register] email send failed:", emailErr);
+    }
 
     return NextResponse.json(
       { success: true, lgaId: lga.id, message: "LGA registered. Please verify your email." },

@@ -84,12 +84,12 @@ export default function PostCard({ post }: Props) {
       const res  = await fetch("/api/reactions", {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ postId: post.id, type }),
+        body:    JSON.stringify({ contentId: post.id, contentType: "post", type }),
       });
       if (res.ok) {
         const data = await res.json();
-        setLikes(data.likes);
-        setDislikes(data.dislikes);
+        setLikes(data.counts?.LIKE ?? 0);
+        setDislikes(data.counts?.DISLIKE ?? 0);
         setMyReaction(data.myReaction);
       } else {
         // Revert on error

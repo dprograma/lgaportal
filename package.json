@@ -50,6 +50,7 @@
     "seed": "npx ts-node --project tsconfig.seed.json prisma/seed.ts"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.0",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",

@@ -17,7 +17,9 @@ export async function GET(req: NextRequest) {
       tenureStatus:      true,
       tenureEndDate:     true,
       gracePeriodEndsAt: true,
-      freeUntil:         true,
+      freeUntil:          true,
+      subscriptionEnd:    true,
+      subscriptionStatus: true,
       _count: {
         select: {
           wards:      true,

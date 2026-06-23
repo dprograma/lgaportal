@@ -8,7 +8,8 @@ import {
   MapPin, BadgeCheck, Building2, TrendingUp, FolderOpen,
   Wheat, Gem, Beef, Fish, TreePine, Zap, Factory,
   ArrowLeft, ArrowRight, Mail, Phone, User, Users,
-  UserCircle2, Hash, Newspaper, Loader2,
+  UserCircle2, Hash, Newspaper, Loader2, Archive,
+  History, FileText, ClipboardList, ExternalLink, DollarSign,
   type LucideIcon,
 } from "lucide-react";
 import PostCard, { type PostData } from "@/components/engagement/PostCard";
@@ -44,8 +45,25 @@ interface EndowmentData {
   contactPerson: string | null; contactEmail: string | null; isPublished: boolean;
 }
 
+/* ─── New data types ─────────────────────────────────────────────────────── */
+interface ArchivedPost {
+  id: string; title: string; slug: string; publishedAt: string | null;
+  tenure: { chairmanName: string; startDate: string; endDate: string | null } | null;
+}
+interface Tenure {
+  id: string; chairmanName: string; startDate: string; endDate: string | null;
+  isActive: boolean; status: string; _count: { posts: number };
+}
+interface Contract {
+  id: string; title: string; contractor: string; value: string;
+  awardDate: string; scope: string;
+}
+interface AuditReport {
+  id: string; financialYear: number; title: string; auditingBody: string; reportUrl: string;
+}
+
 /* ─── Tabs ───────────────────────────────────────────────────────────────── */
-type Tab = "overview" | "wards" | "endowments" | "projects" | "posts";
+type Tab = "overview" | "wards" | "endowments" | "projects" | "posts" | "archive" | "history" | "contracts" | "audit";
 
 /* ─── Inquiry modal ──────────────────────────────────────────────────────── */
 function InquiryModal({
@@ -188,6 +206,16 @@ export default function LGAProfilePage() {
   const [postsOffset,  setPostsOffset]  = useState(0);
   const POSTS_LIMIT = 10;
 
+  // FR-12/FR-13 state
+  const [archivedPosts,   setArchivedPosts]   = useState<ArchivedPost[]>([]);
+  const [archiveLoading,  setArchiveLoading]  = useState(false);
+  const [tenures,         setTenures]         = useState<Tenure[]>([]);
+  const [tenuresLoading,  setTenuresLoading]  = useState(false);
+  const [contracts,       setContracts]       = useState<Contract[]>([]);
+  const [contractsLoading,setContractsLoading]= useState(false);
+  const [auditReports,    setAuditReports]    = useState<AuditReport[]>([]);
+  const [auditLoading,    setAuditLoading]    = useState(false);
+
   useEffect(() => {
     fetch(`/api/lgas/by-slug?slug=${params.slug}`)
       .then((r) => r.json())
@@ -218,6 +246,50 @@ export default function LGAProfilePage() {
       fetchPosts(lga.id, 0);
     }
   }, [tab, lga, posts.length, postsOffset, fetchPosts]);
+
+  // Load archive
+  useEffect(() => {
+    if (tab === "archive" && lga && archivedPosts.length === 0) {
+      setArchiveLoading(true);
+      fetch(`/api/lgas/${lga.id}/archive`)
+        .then((r) => r.json())
+        .then((d) => setArchivedPosts(d.posts ?? []))
+        .finally(() => setArchiveLoading(false));
+    }
+  }, [tab, lga, archivedPosts.length]);
+
+  // Load succession history
+  useEffect(() => {
+    if (tab === "history" && lga && tenures.length === 0) {
+      setTenuresLoading(true);
+      fetch(`/api/lgas/${lga.id}/succession`)
+        .then((r) => r.json())
+        .then((d) => setTenures(d.tenures ?? []))
+        .finally(() => setTenuresLoading(false));
+    }
+  }, [tab, lga, tenures.length]);
+
+  // Load contracts
+  useEffect(() => {
+    if (tab === "contracts" && lga && contracts.length === 0) {
+      setContractsLoading(true);
+      fetch(`/api/lgas/${lga.id}/contracts`)
+        .then((r) => r.json())
+        .then((d) => setContracts(d.contracts ?? []))
+        .finally(() => setContractsLoading(false));
+    }
+  }, [tab, lga, contracts.length]);
+
+  // Load audit reports
+  useEffect(() => {
+    if (tab === "audit" && lga && auditReports.length === 0) {
+      setAuditLoading(true);
+      fetch(`/api/lgas/${lga.id}/audit-reports`)
+        .then((r) => r.json())
+        .then((d) => setAuditReports(d.reports ?? []))
+        .finally(() => setAuditLoading(false));
+    }
+  }, [tab, lga, auditReports.length]);
 
   if (notFound) {
     return (
@@ -302,8 +374,12 @@ export default function LGAProfilePage() {
             { id: "wards",      label: "Wards & Councillors"    },
             { id: "posts",      label: "Posts & Updates"        },
             { id: "overview",   label: "Overview"               },
-            { id: "endowments", label: "Investment & Endowments"},
+            { id: "endowments", label: "Investment"             },
             { id: "projects",   label: "Projects"               },
+            { id: "archive",    label: "Archive"                },
+            { id: "history",    label: "Leadership History"     },
+            { id: "contracts",  label: "Procurement"            },
+            { id: "audit",      label: "Audit Reports"          },
           ] as { id: Tab; label: string }[]).map(({ id, label }) => (
             <button
               key={id}
@@ -666,6 +742,182 @@ export default function LGAProfilePage() {
             <Link href="/#projects" className="text-xs text-green-700 font-medium hover:underline mt-2 inline-block">
               Browse all projects →
             </Link>
+          </motion.div>
+        )}
+
+        {/* ── Archive tab ───────────────────────────────────────────── */}
+        {tab === "archive" && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+            <div className="flex items-center gap-2 mb-2">
+              <Archive className="h-5 w-5 text-green-600" />
+              <h2 className="text-lg font-bold text-slate-900">Archived Posts</h2>
+            </div>
+            <p className="text-sm text-slate-500 mb-6">
+              Historical announcements and records from past administrations of {lga.lgaName} LGA.
+            </p>
+            {archiveLoading ? (
+              <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-slate-300" /></div>
+            ) : archivedPosts.length === 0 ? (
+              <div className="bg-white border border-dashed border-slate-200 rounded-2xl p-12 text-center">
+                <Archive className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+                <p className="text-slate-500 text-sm">No archived posts yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {archivedPosts.map((p) => (
+                  <div key={p.id} className="bg-white rounded-2xl border border-slate-100 p-4 hover:border-green-200 transition-colors">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-slate-900 text-sm mb-1">{p.title}</p>
+                        <p className="text-xs text-slate-400">
+                          {p.tenure ? `Under ${p.tenure.chairmanName}` : ""}
+                          {p.publishedAt && ` · ${new Date(p.publishedAt).toLocaleDateString("en-NG", { year: "numeric", month: "short", day: "numeric" })}`}
+                        </p>
+                      </div>
+                      <Link href={`/posts/${p.slug ?? p.id}`}
+                        className="shrink-0 flex items-center gap-1 text-green-700 hover:text-green-900 text-xs font-medium">
+                        View <ExternalLink className="h-3 w-3" />
+                      </Link>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* ── Leadership History tab ────────────────────────────────── */}
+        {tab === "history" && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+            <div className="flex items-center gap-2 mb-2">
+              <History className="h-5 w-5 text-green-600" />
+              <h2 className="text-lg font-bold text-slate-900">Leadership Succession</h2>
+            </div>
+            <p className="text-sm text-slate-500 mb-6">
+              A record of all chairmen who have served {lga.lgaName} LGA.
+            </p>
+            {tenuresLoading ? (
+              <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-slate-300" /></div>
+            ) : tenures.length === 0 ? (
+              <div className="bg-white border border-dashed border-slate-200 rounded-2xl p-12 text-center">
+                <History className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+                <p className="text-slate-500 text-sm">No leadership history recorded yet</p>
+              </div>
+            ) : (
+              <div className="relative">
+                <div className="absolute left-6 top-0 bottom-0 w-0.5 bg-green-100" />
+                <div className="space-y-4">
+                  {tenures.map((t) => (
+                    <div key={t.id} className="relative flex gap-5">
+                      <div className={`relative z-10 h-12 w-12 rounded-full flex items-center justify-center shrink-0 border-2 ${t.isActive ? "bg-green-700 border-green-500" : "bg-white border-green-200"}`}>
+                        <User className={`h-5 w-5 ${t.isActive ? "text-white" : "text-green-400"}`} />
+                      </div>
+                      <div className="flex-1 bg-white rounded-2xl border border-slate-100 p-4 min-w-0">
+                        <div className="flex items-start justify-between gap-2 flex-wrap">
+                          <div>
+                            <p className="font-bold text-slate-900 text-sm">{t.chairmanName}</p>
+                            <p className="text-xs text-slate-400 mt-0.5">
+                              {new Date(t.startDate).getFullYear()}
+                              {t.endDate ? ` – ${new Date(t.endDate).getFullYear()}` : " – Present"}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {t.isActive && (
+                              <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-[10px] font-bold">Current</span>
+                            )}
+                            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[10px]">
+                              {t._count.posts} post{t._count.posts !== 1 ? "s" : ""}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* ── Procurement Contracts tab ─────────────────────────────── */}
+        {tab === "contracts" && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+            <div className="flex items-center gap-2 mb-2">
+              <FileText className="h-5 w-5 text-green-600" />
+              <h2 className="text-lg font-bold text-slate-900">Procurement Contracts</h2>
+            </div>
+            <p className="text-sm text-slate-500 mb-6">
+              Published procurement and contract records for {lga.lgaName} LGA.
+            </p>
+            {contractsLoading ? (
+              <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-slate-300" /></div>
+            ) : contracts.length === 0 ? (
+              <div className="bg-white border border-dashed border-slate-200 rounded-2xl p-12 text-center">
+                <FileText className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+                <p className="text-slate-500 text-sm">No procurement contracts published yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {contracts.map((c) => {
+                  let nairaVal = "—";
+                  try { nairaVal = new Intl.NumberFormat("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 }).format(Number(BigInt(c.value)) / 100); } catch { /* noop */ }
+                  return (
+                    <div key={c.id} className="bg-white rounded-2xl border border-slate-100 p-5 hover:border-green-200 transition-colors">
+                      <div className="flex items-start justify-between gap-3 mb-2">
+                        <p className="font-semibold text-slate-900 text-sm">{c.title}</p>
+                        <p className="text-sm font-bold text-green-700 shrink-0">{nairaVal}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
+                        <span><span className="font-medium text-slate-600">Contractor:</span> {c.contractor}</span>
+                        <span><span className="font-medium text-slate-600">Awarded:</span> {new Date(c.awardDate).toLocaleDateString("en-NG")}</span>
+                      </div>
+                      {c.scope && <p className="text-xs text-slate-500 mt-2 line-clamp-2">{c.scope}</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* ── Audit Reports tab ─────────────────────────────────────── */}
+        {tab === "audit" && (
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+            <div className="flex items-center gap-2 mb-2">
+              <ClipboardList className="h-5 w-5 text-green-600" />
+              <h2 className="text-lg font-bold text-slate-900">Audit Reports</h2>
+            </div>
+            <p className="text-sm text-slate-500 mb-6">
+              Published financial audit reports for {lga.lgaName} LGA.
+            </p>
+            {auditLoading ? (
+              <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-slate-300" /></div>
+            ) : auditReports.length === 0 ? (
+              <div className="bg-white border border-dashed border-slate-200 rounded-2xl p-12 text-center">
+                <ClipboardList className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+                <p className="text-slate-500 text-sm">No audit reports published yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {auditReports.map((r) => (
+                  <div key={r.id} className="bg-white rounded-2xl border border-slate-100 p-5 hover:border-green-200 transition-colors">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold">{r.financialYear}</span>
+                          <p className="font-semibold text-slate-900 text-sm">{r.title}</p>
+                        </div>
+                        <p className="text-xs text-slate-400">Audited by {r.auditingBody}</p>
+                      </div>
+                      <a href={r.reportUrl} target="_blank" rel="noopener noreferrer"
+                        className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-50 hover:bg-green-100 text-green-700 text-xs font-semibold transition-colors">
+                        <DollarSign className="h-3.5 w-3.5" /> View Report
+                      </a>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </motion.div>
         )}
       </div>

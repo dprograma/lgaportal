@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Building2, Search, CheckCircle, XCircle, Clock, BadgeCheck,
-  ChevronDown, ChevronRight, AlertCircle, Filter,
+  ChevronDown, AlertCircle, ShieldOff, Power,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -58,9 +58,10 @@ export default function AdminLGAsPage() {
   const [dSearch,    setDSearch]    = useState("");
   const [page,       setPage]       = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [rejectId,   setRejectId]   = useState<string | null>(null);
+  const [rejectId,     setRejectId]     = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
-  const [acting,     setActing]     = useState<string | null>(null);
+  const [acting,       setActing]       = useState<string | null>(null);
+  const [stateFilter,  setStateFilter]  = useState("");
   const PAGE = 25;
 
   // Debounce search
@@ -69,13 +70,15 @@ export default function AdminLGAsPage() {
     return () => clearTimeout(t);
   }, [search]);
 
-  useEffect(() => { setPage(0); }, [tab]);
+  useEffect(() => { setPage(0); }, [tab, stateFilter]);
 
   const fetchLgas = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams({
       limit: String(PAGE), offset: String(page * PAGE),
-      status: tab, ...(dSearch ? { search: dSearch } : {}),
+      status: tab,
+      ...(dSearch      ? { search: dSearch }          : {}),
+      ...(stateFilter  ? { state: stateFilter }        : {}),
     });
     try {
       const res = await fetch(`/api/admin/lgas?${params}`, {
@@ -89,7 +92,7 @@ export default function AdminLGAsPage() {
     } finally {
       setLoading(false);
     }
-  }, [tab, dSearch, page]);
+  }, [tab, dSearch, page, stateFilter]);
 
   useEffect(() => { fetchLgas(); }, [fetchLgas]);
 
@@ -130,6 +133,22 @@ export default function AdminLGAsPage() {
     finally { setActing(null); }
   };
 
+  const changeStatus = async (id: string, status: string) => {
+    setActing(id);
+    try {
+      const res = await fetch(`/api/admin/lgas/${id}/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-secret": ADMIN_SECRET },
+        body: JSON.stringify({ status }),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error); return; }
+      toast.success(data.message);
+      fetchLgas();
+    } catch { toast.error("Action failed."); }
+    finally { setActing(null); }
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
       <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -154,9 +173,9 @@ export default function AdminLGAsPage() {
         ))}
       </div>
 
-      {/* Search */}
-      <div className="flex gap-3 mb-5">
-        <div className="relative flex-1 max-w-sm">
+      {/* Search + State filter */}
+      <div className="flex gap-3 mb-5 flex-wrap">
+        <div className="relative flex-1 min-w-48 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
             type="text"
@@ -166,6 +185,13 @@ export default function AdminLGAsPage() {
             className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-100"
           />
         </div>
+        <input
+          type="text"
+          placeholder="Filter by state…"
+          value={stateFilter}
+          onChange={(e) => { setStateFilter(e.target.value); setPage(0); }}
+          className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-100 w-44"
+        />
       </div>
 
       {/* Table */}
@@ -206,7 +232,7 @@ export default function AdminLGAsPage() {
                       {lga.state} · {lga.chairmanName} · {lga._count.verificationDocs} doc{lga._count.verificationDocs !== 1 ? "s" : ""}
                     </p>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
+                  <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
                     {lga.status === "PENDING" && (
                       <>
                         <button
@@ -225,6 +251,40 @@ export default function AdminLGAsPage() {
                           Reject
                         </button>
                       </>
+                    )}
+                    {lga.status === "APPROVED" && (
+                      <button
+                        onClick={() => changeStatus(lga.id, "SUSPENDED")}
+                        disabled={acting === lga.id}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-orange-200 text-orange-600 hover:bg-orange-50 text-xs font-semibold transition-colors disabled:opacity-50"
+                      >
+                        <ShieldOff className="h-3.5 w-3.5" />
+                        Suspend
+                      </button>
+                    )}
+                    {(lga.status === "APPROVED" || lga.status === "SUSPENDED") && (
+                      <button
+                        onClick={() => changeStatus(lga.id, lga.status === "SUSPENDED" ? "APPROVED" : "DEACTIVATED")}
+                        disabled={acting === lga.id}
+                        className={`flex items-center gap-1 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors disabled:opacity-50 ${
+                          lga.status === "SUSPENDED"
+                            ? "border-green-200 text-green-700 hover:bg-green-50"
+                            : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                        }`}
+                      >
+                        <Power className="h-3.5 w-3.5" />
+                        {lga.status === "SUSPENDED" ? "Reactivate" : "Deactivate"}
+                      </button>
+                    )}
+                    {lga.status === "DEACTIVATED" && (
+                      <button
+                        onClick={() => changeStatus(lga.id, "APPROVED")}
+                        disabled={acting === lga.id}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-green-200 text-green-700 hover:bg-green-50 text-xs font-semibold transition-colors disabled:opacity-50"
+                      >
+                        <Power className="h-3.5 w-3.5" />
+                        Reactivate
+                      </button>
                     )}
                     <button
                       onClick={() => setExpandedId(expandedId === lga.id ? null : lga.id)}

@@ -44,7 +44,13 @@ export async function GET(
 
   const dailyStats = Object.values(byDate).sort((a, b) => a.date.localeCompare(b.date));
 
-  return Response.json({ campaign, dailyStats });
+  return Response.json({
+    campaign: {
+      ...campaign,
+      plan: campaign.plan ? { ...campaign.plan, price: campaign.plan.price.toString() } : null,
+    },
+    dailyStats,
+  });
 }
 
 export async function PATCH(

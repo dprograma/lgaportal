@@ -96,8 +96,12 @@ export async function POST(request: Request) {
       },
     });
 
-    // Send email
-    await sendOTPEmail(sanitizedIdentifier, code, purpose);
+    // Send email (non-fatal — code is stored in DB regardless)
+    try {
+      await sendOTPEmail(sanitizedIdentifier, code, purpose);
+    } catch (emailErr) {
+      console.error("[POST /api/otp/send] email send failed:", emailErr);
+    }
 
     return NextResponse.json({
       success: true,

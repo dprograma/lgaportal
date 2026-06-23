@@ -5,19 +5,22 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard, TrendingUp, FileText, MessageSquare,
   Settings, LogOut, Shield, Users, Newspaper, UserCog, CalendarClock, CreditCard,
+  BarChart2,
 } from "lucide-react";
 
 const navItems = [
   { href: "/lga-dashboard",             label: "Overview",           icon: LayoutDashboard },
   { href: "/lga-dashboard/posts",       label: "Posts & Updates",    icon: Newspaper       },
+  { href: "/lga-dashboard/analytics",   label: "Analytics",          icon: BarChart2       },
   { href: "/lga-dashboard/wards",       label: "Wards & Councillors",icon: Users           },
   { href: "/lga-dashboard/endowments",  label: "Endowments",         icon: TrendingUp      },
   { href: "/lga-dashboard/projects",    label: "Projects",           icon: FileText        },
   { href: "/lga-dashboard/inquiries",   label: "Investor Inquiries", icon: MessageSquare   },
-  { href: "/lga-dashboard/staff",       label: "Staff Management",   icon: UserCog         },
-  { href: "/lga-dashboard/tenure",      label: "Tenure",             icon: CalendarClock   },
-  { href: "/lga-dashboard/payments",    label: "Payments",           icon: CreditCard      },
-  { href: "/lga-dashboard/settings",    label: "Settings",           icon: Settings        },
+  { href: "/lga-dashboard/press-releases", label: "Press Releases",     icon: Newspaper       },
+  { href: "/lga-dashboard/staff",          label: "Staff Management",   icon: UserCog         },
+  { href: "/lga-dashboard/tenure",         label: "Tenure",             icon: CalendarClock   },
+  { href: "/lga-dashboard/payments",       label: "Payments",           icon: CreditCard      },
+  { href: "/lga-dashboard/settings",       label: "Settings",           icon: Settings        },
 ];
 
 export default function LGADashboardLayout({ children }: { children: React.ReactNode }) {

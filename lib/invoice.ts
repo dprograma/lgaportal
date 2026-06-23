@@ -32,7 +32,8 @@ export function generateInvoicePDF(data: InvoiceData): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
       // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const PDFDocument = require("pdfkit") as typeof import("pdfkit");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const PDFDocument = require("pdfkit") as any;
       const doc = new PDFDocument({ size: "A4", margin: 50 });
       const chunks: Buffer[] = [];
 

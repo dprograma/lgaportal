@@ -79,8 +79,12 @@ export async function POST(request: Request) {
       },
     });
 
-    // Send verification email
-    await sendVerificationEmail(user.email, user.name, token);
+    // Send verification email (non-fatal — user can request resend)
+    try {
+      await sendVerificationEmail(user.email, user.name, token);
+    } catch (emailErr) {
+      console.error("[POST /api/auth/register] email send failed:", emailErr);
+    }
 
     return NextResponse.json(
       { success: true, message: "Account created. Please check your email to verify your account." },

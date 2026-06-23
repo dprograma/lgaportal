@@ -2,16 +2,22 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Building2, Clock, ShieldCheck, LogOut, BarChart2, ShieldAlert, Megaphone, DollarSign } from "lucide-react";
+import { LayoutDashboard, Building2, Clock, ShieldCheck, LogOut, BarChart2, ShieldAlert, Megaphone, DollarSign, Users, Activity, FileText, ClipboardList, Newspaper, Radio } from "lucide-react";
 
 const navItems = [
-  { href: "/admin",              label: "Overview",       icon: LayoutDashboard },
-  { href: "/admin/lgas",         label: "LGA Approvals",  icon: Building2       },
-  { href: "/admin/expiring",     label: "Expiring Trials",icon: Clock           },
-  { href: "/admin/allocations",  label: "Allocations",    icon: BarChart2       },
-  { href: "/admin/moderation",   label: "Moderation",     icon: ShieldAlert     },
-  { href: "/admin/ads",          label: "Ads",            icon: Megaphone       },
-  { href: "/admin/revenue",      label: "Revenue",        icon: DollarSign      },
+  { href: "/admin",                label: "Overview",        icon: LayoutDashboard },
+  { href: "/admin/lgas",           label: "LGA Approvals",   icon: Building2       },
+  { href: "/admin/users",          label: "Users",           icon: Users           },
+  { href: "/admin/analytics",      label: "Analytics",       icon: Activity        },
+  { href: "/admin/expiring",       label: "Expiring Trials", icon: Clock           },
+  { href: "/admin/allocations",    label: "Allocations",     icon: BarChart2       },
+  { href: "/admin/procurement",    label: "Procurement",     icon: FileText        },
+  { href: "/admin/audit-reports",  label: "Audit Reports",   icon: ClipboardList   },
+  { href: "/admin/press-releases", label: "Press Releases",  icon: Newspaper       },
+  { href: "/admin/live-streams",   label: "Live Streams",    icon: Radio           },
+  { href: "/admin/moderation",     label: "Moderation",      icon: ShieldAlert     },
+  { href: "/admin/ads",            label: "Ads",             icon: Megaphone       },
+  { href: "/admin/revenue",        label: "Revenue",         icon: DollarSign      },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
