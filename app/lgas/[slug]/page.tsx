@@ -61,6 +61,12 @@ interface Contract {
 interface AuditReport {
   id: string; financialYear: number; title: string; auditingBody: string; reportUrl: string;
 }
+interface LGAProject {
+  id: string; slug: string | null; title: string; description: string;
+  category: string; status: string; budget: string | null;
+  images: string[]; startDate: string | null; expectedEndDate: string | null;
+  _count: { reactions: number; comments: number };
+}
 
 /* ─── Tabs ───────────────────────────────────────────────────────────────── */
 type Tab = "overview" | "wards" | "endowments" | "projects" | "posts" | "archive" | "history" | "contracts" | "audit";
@@ -206,6 +212,11 @@ export default function LGAProfilePage() {
   const [postsOffset,  setPostsOffset]  = useState(0);
   const POSTS_LIMIT = 10;
 
+  // Projects state
+  const [lgaProjects,        setLgaProjects]        = useState<LGAProject[]>([]);
+  const [lgaProjectsLoading, setLgaProjectsLoading] = useState(false);
+  const [lgaProjectsTotal,   setLgaProjectsTotal]   = useState(0);
+
   // FR-12/FR-13 state
   const [archivedPosts,   setArchivedPosts]   = useState<ArchivedPost[]>([]);
   const [archiveLoading,  setArchiveLoading]  = useState(false);
@@ -246,6 +257,17 @@ export default function LGAProfilePage() {
       fetchPosts(lga.id, 0);
     }
   }, [tab, lga, posts.length, postsOffset, fetchPosts]);
+
+  // Load this LGA's projects
+  useEffect(() => {
+    if (tab === "projects" && lga && lgaProjects.length === 0) {
+      setLgaProjectsLoading(true);
+      fetch(`/api/projects?lgaId=${lga.id}&limit=12&offset=0`)
+        .then((r) => r.json())
+        .then((d) => { setLgaProjects(d.projects ?? []); setLgaProjectsTotal(d.total ?? 0); })
+        .finally(() => setLgaProjectsLoading(false));
+    }
+  }, [tab, lga, lgaProjects.length]);
 
   // Load archive
   useEffect(() => {
@@ -731,17 +753,66 @@ export default function LGAProfilePage() {
 
         {/* ── Projects tab ──────────────────────────────────────────── */}
         {tab === "projects" && (
-          <motion.div
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3 }}
-            className="bg-white border border-slate-200 border-dashed rounded-2xl p-12 text-center"
-          >
-            <FolderOpen className="h-10 w-10 text-slate-300 mx-auto mb-3" />
-            <p className="text-sm text-slate-500">Projects for {lga.lgaName} LGA coming soon.</p>
-            <Link href="/#projects" className="text-xs text-green-700 font-medium hover:underline mt-2 inline-block">
-              Browse all projects →
-            </Link>
+          <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <FolderOpen className="h-5 w-5 text-green-600" />
+                <h2 className="text-lg font-bold text-slate-900">Projects</h2>
+                {lgaProjectsTotal > 0 && (
+                  <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 text-xs font-semibold">{lgaProjectsTotal}</span>
+                )}
+              </div>
+              <Link href={`/projects?lgaId=${lga.id}`}
+                className="text-xs text-green-700 font-medium hover:underline">
+                View all →
+              </Link>
+            </div>
+
+            {lgaProjectsLoading ? (
+              <div className="flex justify-center py-16"><Loader2 className="h-6 w-6 animate-spin text-slate-300" /></div>
+            ) : lgaProjects.length === 0 ? (
+              <div className="bg-white border border-dashed border-slate-200 rounded-2xl p-12 text-center">
+                <FolderOpen className="h-10 w-10 text-slate-200 mx-auto mb-3" />
+                <p className="text-slate-500 text-sm">No projects published yet for {lga.lgaName} LGA</p>
+                <Link href="/projects" className="text-xs text-green-700 font-medium hover:underline mt-2 inline-block">
+                  Browse all projects →
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {lgaProjects.map((project) => (
+                  <Link key={project.id} href={`/projects/${project.slug ?? project.id}`}
+                    className="group bg-white rounded-2xl border border-slate-100 hover:border-green-200 hover:shadow-sm transition-all overflow-hidden">
+                    {project.images[0] && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={project.images[0]} alt={project.title}
+                        className="w-full h-36 object-cover" />
+                    )}
+                    <div className="p-4">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
+                          project.status === "COMPLETED"   ? "bg-green-100 text-green-700" :
+                          project.status === "IN_PROGRESS" ? "bg-blue-100 text-blue-700"  :
+                                                             "bg-slate-100 text-slate-600"
+                        }`}>
+                          {project.status.replace("_", " ")}
+                        </span>
+                        <span className="text-xs text-slate-400">{project.category.replace("_", " ")}</span>
+                      </div>
+                      <p className="font-semibold text-slate-900 text-sm leading-snug group-hover:text-green-700 transition-colors mb-1 line-clamp-2">
+                        {project.title}
+                      </p>
+                      <p className="text-xs text-slate-500 line-clamp-2">{project.description}</p>
+                      {project.budget && (
+                        <p className="text-xs text-green-700 font-semibold mt-2">
+                          Budget: ₦{(Number(BigInt(project.budget)) / 100).toLocaleString("en-NG")}
+                        </p>
+                      )}
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
           </motion.div>
         )}
 

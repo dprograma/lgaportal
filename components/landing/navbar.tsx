@@ -14,6 +14,7 @@ const navLinks = [
   { label: "Projects",    href: "/projects" },
   { label: "Allocations", href: "/allocations" },
   { label: "News",        href: "/news" },
+  { label: "Live",        href: "/live-streams" },
   { label: "How It Works",href: "/#how-it-works" },
 ];
 

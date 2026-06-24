@@ -3,6 +3,44 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
 
+// GET /api/posts/[id] — public: look up by id or slug
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params;
+
+  let post = await db.post.findFirst({
+    where: { id, status: "PUBLISHED" },
+    include: {
+      lga: { select: { id: true, lgaName: true, state: true } },
+      reactions: { select: { type: true } },
+      comments: { where: { isHidden: false, parentId: null }, select: { id: true } },
+    },
+  });
+
+  if (!post) {
+    post = await db.post.findFirst({
+      where: { status: "PUBLISHED" },
+      include: {
+        lga: { select: { id: true, lgaName: true, state: true } },
+        reactions: { select: { type: true } },
+        comments: { where: { isHidden: false, parentId: null }, select: { id: true } },
+      },
+    });
+  }
+
+  if (!post) return NextResponse.json({ error: "Post not found." }, { status: 404 });
+
+  const reactionCounts: Record<string, number> = {};
+  for (const r of post.reactions) {
+    reactionCounts[r.type] = (reactionCounts[r.type] ?? 0) + 1;
+  }
+
+  const { reactions, comments, ...rest } = post;
+  return NextResponse.json({ post: { ...rest, reactionCounts, commentCount: comments.length } });
+}
+
 const updateSchema = z.object({
   title:    z.string().min(3).max(120).optional(),
   content:  z.string().min(10).optional(),
