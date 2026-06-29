@@ -53,7 +53,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const chairman = await db.lGAChairman.findUnique({ where: { lgaId } });
-    if (!chairman) return NextResponse.json({ error: "Chairman account not found." }, { status: 404 });
+    if (!chairman?.password) return NextResponse.json({ error: "Chairman account not found." }, { status: 404 });
 
     const valid = await bcrypt.compare(parsed.data.currentPassword, chairman.password);
     if (!valid) return NextResponse.json({ error: "Current password is incorrect." }, { status: 400 });
