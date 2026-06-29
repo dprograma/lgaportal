@@ -162,7 +162,7 @@ export default function PostDetailPage() {
 
         {/* Comments */}
         <div className="bg-white rounded-2xl border border-slate-100 p-6">
-          <CommentSection postId={post.id} />
+          <CommentSection contentId={post.id} contentType="post" />
         </div>
 
         {/* Report */}
