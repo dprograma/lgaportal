@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-const ADMIN_SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET ?? "";
+const ADMIN_SECRET = typeof window !== "undefined" ? (sessionStorage.getItem("adminSecret") ?? "") : "";
 
 type Status = "ALL" | "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
 
@@ -179,7 +179,7 @@ export default function AdminLGAsPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search LGA name…"
+            placeholder="Search LGA nameâ€¦"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-100"
@@ -187,7 +187,7 @@ export default function AdminLGAsPage() {
         </div>
         <input
           type="text"
-          placeholder="Filter by state…"
+          placeholder="Filter by stateâ€¦"
           value={stateFilter}
           onChange={(e) => { setStateFilter(e.target.value); setPage(0); }}
           className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-100 w-44"
@@ -229,7 +229,7 @@ export default function AdminLGAsPage() {
                       <StatusBadge status={lga.status} />
                     </div>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      {lga.state} · {lga.chairmanName} · {lga._count.verificationDocs} doc{lga._count.verificationDocs !== 1 ? "s" : ""}
+                      {lga.state} Â· {lga.chairmanName} Â· {lga._count.verificationDocs} doc{lga._count.verificationDocs !== 1 ? "s" : ""}
                     </p>
                   </div>
                   <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
@@ -327,16 +327,16 @@ export default function AdminLGAsPage() {
       {Math.ceil(total / PAGE) > 1 && (
         <div className="mt-6 flex items-center justify-between">
           <p className="text-sm text-slate-500">
-            Showing {page * PAGE + 1}–{Math.min((page + 1) * PAGE, total)} of {total}
+            Showing {page * PAGE + 1}â€“{Math.min((page + 1) * PAGE, total)} of {total}
           </p>
           <div className="flex gap-2">
             <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
               className="px-4 py-2 rounded-xl border border-slate-200 text-sm disabled:opacity-40 hover:border-green-400 transition-colors">
-              ← Prev
+              â† Prev
             </button>
             <button onClick={() => setPage((p) => p + 1)} disabled={(page + 1) * PAGE >= total}
               className="px-4 py-2 rounded-xl border border-slate-200 text-sm disabled:opacity-40 hover:border-green-400 transition-colors">
-              Next →
+              Next â†’
             </button>
           </div>
         </div>
@@ -370,7 +370,7 @@ export default function AdminLGAsPage() {
               <textarea
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="Enter reason for rejection (min 10 characters)…"
+                placeholder="Enter reason for rejection (min 10 characters)â€¦"
                 rows={4}
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-100 resize-none mb-4"
               />

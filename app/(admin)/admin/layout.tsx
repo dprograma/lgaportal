@@ -1,8 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { LayoutDashboard, Building2, Clock, ShieldCheck, LogOut, BarChart2, ShieldAlert, Megaphone, DollarSign, Users, Activity, FileText, ClipboardList, Newspaper, Radio } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { LayoutDashboard, Building2, Clock, ShieldCheck, LogOut, BarChart2, ShieldAlert, Megaphone, DollarSign, Users, Activity, FileText, ClipboardList, Newspaper, Radio, Loader2 } from "lucide-react";
 
 const navItems = [
   { href: "/admin",                label: "Overview",        icon: LayoutDashboard },
@@ -21,7 +22,41 @@ const navItems = [
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
+  const pathname  = usePathname();
+  const router    = useRouter();
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    // Skip auth check on the login page itself
+    if (pathname === "/admin/login") { setReady(true); return; }
+
+    const stored = sessionStorage.getItem("adminSecret");
+    if (stored) { setReady(true); return; }
+
+    // Cookie may be set (e.g. page refresh) — try to recover the secret
+    fetch("/api/admin/auth")
+      .then((r) => r.ok ? r.json() : Promise.reject())
+      .then(({ secret }: { secret: string }) => {
+        sessionStorage.setItem("adminSecret", secret);
+        setReady(true);
+      })
+      .catch(() => router.replace("/admin/login"));
+  }, [pathname, router]);
+
+  const logout = async () => {
+    await fetch("/api/admin/auth", { method: "DELETE" });
+    sessionStorage.removeItem("adminSecret");
+    router.replace("/admin/login");
+  };
+
+  if (!ready) return (
+    <div className="min-h-screen bg-[#071a0e] flex items-center justify-center">
+      <Loader2 className="h-7 w-7 animate-spin text-green-500" />
+    </div>
+  );
+
+  // Login page uses no sidebar
+  if (pathname === "/admin/login") return <>{children}</>;
 
   return (
     <div className="flex min-h-screen bg-slate-50">
@@ -55,14 +90,21 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           })}
         </nav>
 
-        <div className="px-3 pb-4">
+        <div className="px-3 pb-4 space-y-1">
           <Link
             href="/"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-green-100/50 hover:bg-red-900/30 hover:text-red-300 transition-all"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-green-100/50 hover:bg-white/10 hover:text-white transition-all"
+          >
+            <LayoutDashboard className="h-4 w-4 shrink-0" />
+            View Site
+          </Link>
+          <button
+            onClick={logout}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-green-100/50 hover:bg-red-900/30 hover:text-red-300 transition-all"
           >
             <LogOut className="h-4 w-4 shrink-0" />
-            Exit Admin
-          </Link>
+            Sign Out
+          </button>
         </div>
       </aside>
 

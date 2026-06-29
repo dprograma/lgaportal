@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect } from "react";
 import {
@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import { Building2, Users, FileText, DollarSign, TrendingUp, Activity } from "lucide-react";
 
-const ADMIN_SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET ?? "";
+const ADMIN_SECRET = typeof window !== "undefined" ? (sessionStorage.getItem("adminSecret") ?? "") : "";
 
 interface AnalyticsData {
   lgas: {
@@ -58,9 +58,9 @@ function StatCard({ icon: Icon, label, value, sub, color = "text-green-600" }: {
 
 function nairaK(koboStr: string) {
   const naira = (koboStr && koboStr !== "0" ? Number(BigInt(koboStr)) : 0) / 100;
-  if (naira >= 1_000_000) return `₦${(naira / 1_000_000).toFixed(1)}M`;
-  if (naira >= 1_000)     return `₦${(naira / 1_000).toFixed(1)}K`;
-  return `₦${naira.toFixed(2)}`;
+  if (naira >= 1_000_000) return `â‚¦${(naira / 1_000_000).toFixed(1)}M`;
+  if (naira >= 1_000)     return `â‚¦${(naira / 1_000).toFixed(1)}K`;
+  return `â‚¦${naira.toFixed(2)}`;
 }
 
 export default function AdminAnalyticsPage() {
@@ -124,7 +124,7 @@ export default function AdminAnalyticsPage() {
       <div className="grid lg:grid-cols-2 gap-6 mb-8">
         {/* Monthly revenue bar chart */}
         <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
-          <h2 className="text-sm font-semibold text-green-200/80 mb-4">Monthly Revenue (₦)</h2>
+          <h2 className="text-sm font-semibold text-green-200/80 mb-4">Monthly Revenue (â‚¦)</h2>
           {revenueChartData.length === 0 ? (
             <div className="h-48 flex items-center justify-center text-sm text-green-200/40">
               No revenue data yet
@@ -135,10 +135,10 @@ export default function AdminAnalyticsPage() {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
                 <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#6ee7b7" }} />
                 <YAxis tick={{ fontSize: 10, fill: "#6ee7b7" }}
-                  tickFormatter={(v) => `₦${(Number(v) / 1000).toFixed(0)}K`} />
+                  tickFormatter={(v) => `â‚¦${(Number(v) / 1000).toFixed(0)}K`} />
                 <Tooltip
                   contentStyle={{ background: "#0f2d1a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff" }}
-                  formatter={(v) => [`₦${Number(v).toLocaleString()}`, "Revenue"]}
+                  formatter={(v) => [`â‚¦${Number(v).toLocaleString()}`, "Revenue"]}
                 />
                 <Bar dataKey="revenue" fill="#15803d" radius={[4,4,0,0]} />
               </BarChart>
@@ -194,7 +194,7 @@ export default function AdminAnalyticsPage() {
                 <span className="text-sm font-bold text-green-400/60 w-5 text-center">{idx + 1}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-white truncate">{lga.lgaName} LGA</p>
-                  <p className="text-xs text-green-200/40 mt-0.5">{lga.state} · {lga.status}</p>
+                  <p className="text-xs text-green-200/40 mt-0.5">{lga.state} Â· {lga.status}</p>
                 </div>
                 <div className="flex items-center gap-1 text-sm font-bold text-green-300">
                   <FileText className="h-3.5 w-3.5 text-green-400/60" />

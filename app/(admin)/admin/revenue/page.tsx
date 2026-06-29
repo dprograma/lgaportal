@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -61,7 +61,7 @@ export default function AdminRevenuePage() {
 
   useEffect(() => {
     fetch("/api/admin/revenue", {
-      headers: { "x-admin-secret": process.env.NEXT_PUBLIC_ADMIN_SECRET ?? "" },
+      headers: { "x-admin-secret": typeof window !== "undefined" ? (sessionStorage.getItem("adminSecret") ?? "") : "" },
     })
       .then((r) => r.json())
       .then((d) => {
@@ -166,7 +166,7 @@ export default function AdminRevenuePage() {
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
               <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `₦${(v / 1000).toFixed(0)}k`} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `â‚¦${(v / 1000).toFixed(0)}k`} />
               <Tooltip
                 formatter={(value) =>
                   new Intl.NumberFormat("en-NG", {
@@ -273,7 +273,7 @@ export default function AdminRevenuePage() {
               {data.recentTransactions.map((t) => (
                 <tr key={t.id} className="hover:bg-slate-50">
                   <td className="px-5 py-3 font-mono text-xs text-slate-600">
-                    {t.invoiceNumber ?? "—"}
+                    {t.invoiceNumber ?? "â€”"}
                   </td>
                   <td className="px-4 py-3 text-slate-700">
                     {purposeLabels[t.purpose] ?? t.purpose}

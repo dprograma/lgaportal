@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -32,7 +32,7 @@ interface AdPlan {
   sortOrder: number;
 }
 
-const adminHeaders = { "x-admin-secret": process.env.NEXT_PUBLIC_ADMIN_SECRET ?? "" };
+const adminHeaders = { "x-admin-secret": typeof window !== "undefined" ? (sessionStorage.getItem("adminSecret") ?? "") : "" };
 
 const statusColors: Record<string, string> = {
   PENDING_REVIEW: "bg-yellow-100 text-yellow-700",
@@ -269,7 +269,7 @@ export default function AdminAdsPage() {
                           <div>
                             <h3 className="font-semibold text-slate-900">{c.title}</h3>
                             <p className="text-xs text-slate-500 mt-0.5">
-                              {c.advertiser.name} · {c.advertiser.email}
+                              {c.advertiser.name} Â· {c.advertiser.email}
                             </p>
                           </div>
                           <span

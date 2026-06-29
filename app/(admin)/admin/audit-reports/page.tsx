@@ -1,11 +1,11 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ClipboardList, Plus, Search, Trash2, Eye, EyeOff, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
-const ADMIN_SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET ?? "";
+const ADMIN_SECRET = typeof window !== "undefined" ? (sessionStorage.getItem("adminSecret") ?? "") : "";
 
 interface AuditReport {
   id: string;
@@ -136,7 +136,7 @@ export default function AdminAuditReportsPage() {
       <div className="relative mb-5 max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
         <input
-          type="text" placeholder="Search LGA or report title…"
+          type="text" placeholder="Search LGA or report titleâ€¦"
           value={search} onChange={(e) => setSearch(e.target.value)}
           className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-white/20 bg-white/10 text-white placeholder:text-green-200/40 text-sm focus:outline-none focus:border-green-400"
         />
@@ -166,8 +166,8 @@ export default function AdminAuditReportsPage() {
                     )}
                   </div>
                   <p className="text-xs text-slate-400">
-                    {r.lga.lgaName} LGA · {r.auditingBody}
-                    {r.uploadedBy ? ` · Uploaded by ${r.uploadedBy}` : ""}
+                    {r.lga.lgaName} LGA Â· {r.auditingBody}
+                    {r.uploadedBy ? ` Â· Uploaded by ${r.uploadedBy}` : ""}
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
@@ -193,12 +193,12 @@ export default function AdminAuditReportsPage() {
       {/* Pagination */}
       {Math.ceil(total / PAGE) > 1 && (
         <div className="mt-5 flex items-center justify-between text-white">
-          <p className="text-sm text-green-200/60">Showing {page * PAGE + 1}–{Math.min((page + 1) * PAGE, total)} of {total}</p>
+          <p className="text-sm text-green-200/60">Showing {page * PAGE + 1}â€“{Math.min((page + 1) * PAGE, total)} of {total}</p>
           <div className="flex gap-2">
             <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
-              className="px-4 py-2 rounded-xl border border-white/20 text-sm disabled:opacity-40 hover:bg-white/10">← Prev</button>
+              className="px-4 py-2 rounded-xl border border-white/20 text-sm disabled:opacity-40 hover:bg-white/10">â† Prev</button>
             <button onClick={() => setPage((p) => p + 1)} disabled={(page + 1) * PAGE >= total}
-              className="px-4 py-2 rounded-xl border border-white/20 text-sm disabled:opacity-40 hover:bg-white/10">Next →</button>
+              className="px-4 py-2 rounded-xl border border-white/20 text-sm disabled:opacity-40 hover:bg-white/10">Next â†’</button>
           </div>
         </div>
       )}
@@ -234,7 +234,7 @@ export default function AdminAuditReportsPage() {
                     </div>
                   ) : (
                     <div className="relative">
-                      <input type="text" placeholder="Search LGA name…" value={lgaSearch}
+                      <input type="text" placeholder="Search LGA nameâ€¦" value={lgaSearch}
                         onChange={(e) => setLgaSearch(e.target.value)}
                         className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-green-400" />
                       {lgaOptions.length > 0 && (
@@ -242,7 +242,7 @@ export default function AdminAuditReportsPage() {
                           {lgaOptions.map((lga) => (
                             <button key={lga.id} onClick={() => { setForm((f) => ({ ...f, lgaId: lga.id })); setLgaOptions([]); setLgaSearch(`${lga.lgaName} LGA, ${lga.state}`); }}
                               className="w-full text-left px-4 py-2.5 text-sm hover:bg-green-50 border-b border-slate-50 last:border-0">
-                              {lga.lgaName} LGA — {lga.state}
+                              {lga.lgaName} LGA â€” {lga.state}
                             </button>
                           ))}
                         </div>
@@ -256,7 +256,7 @@ export default function AdminAuditReportsPage() {
                   <label className="text-xs font-semibold text-slate-700 block mb-1.5">Financial Year *</label>
                   <select value={form.financialYear} onChange={(e) => setForm((f) => ({ ...f, financialYear: e.target.value }))}
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-green-400 bg-white">
-                    <option value="">Select year…</option>
+                    <option value="">Select yearâ€¦</option>
                     {years.map((y) => <option key={y} value={y}>{y}</option>)}
                   </select>
                 </div>
@@ -264,7 +264,7 @@ export default function AdminAuditReportsPage() {
                 {[
                   { key: "title",       label: "Report Title *",    placeholder: "e.g. Annual Audit Report 2024" },
                   { key: "auditingBody",label: "Auditing Body *",   placeholder: "e.g. State Auditor General's Office" },
-                  { key: "reportUrl",   label: "Report URL *",      placeholder: "https://…" },
+                  { key: "reportUrl",   label: "Report URL *",      placeholder: "https://â€¦" },
                   { key: "uploadedBy",  label: "Uploaded By",       placeholder: "Name of the uploader (optional)" },
                 ].map(({ key, label, placeholder }) => (
                   <div key={key}>

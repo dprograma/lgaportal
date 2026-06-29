@@ -1,10 +1,10 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useCallback } from "react";
 import { Loader2, ShieldAlert, ClipboardList, Trash2, BanIcon, Clock, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
-const ADMIN_SECRET = process.env.NEXT_PUBLIC_ADMIN_SECRET ?? "";
+const ADMIN_SECRET = typeof window !== "undefined" ? (sessionStorage.getItem("adminSecret") ?? "") : "";
 
 interface FlagReport {
   id: string;
@@ -294,7 +294,7 @@ export default function ModerationPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-slate-600">
-                        {a.targetType}: {a.targetId.slice(0, 12)}…
+                        {a.targetType}: {a.targetId.slice(0, 12)}â€¦
                       </td>
                       <td className="px-4 py-3 text-slate-500 max-w-[200px] truncate">{a.reason}</td>
                       <td className="px-4 py-3 text-slate-500">{a.admin.name}</td>
