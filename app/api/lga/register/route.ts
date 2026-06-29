@@ -47,18 +47,6 @@ export async function POST(request: Request) {
 
     const sanitizedEmail = email.toLowerCase().trim();
 
-    // Check if LGA (name + state) already exists
-    const existingLGA = await db.lGA.findUnique({
-      where: { lgaName_state: { lgaName: sanitizeInput(lgaName), state } },
-    });
-
-    if (existingLGA) {
-      return NextResponse.json(
-        { error: "An LGA with this name and state is already registered." },
-        { status: 409 }
-      );
-    }
-
     // Check if email already exists in LGAChairman
     const existingChairman = await db.lGAChairman.findUnique({
       where: { email: sanitizedEmail },
@@ -71,6 +59,20 @@ export async function POST(request: Request) {
       );
     }
 
+    // Look up the LGA by name + state (may already exist as seed data with no chairman)
+    const seededLGA = await db.lGA.findUnique({
+      where: { lgaName_state: { lgaName: sanitizeInput(lgaName), state } },
+      include: { chairman: { select: { id: true } } },
+    });
+
+    if (seededLGA?.chairman) {
+      // A real chairman already claimed this LGA
+      return NextResponse.json(
+        { error: "This LGA has already been registered. Contact support if you believe this is an error." },
+        { status: 409 }
+      );
+    }
+
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 12);
 
@@ -78,31 +80,60 @@ export async function POST(request: Request) {
     const freeUntil = new Date();
     freeUntil.setMonth(freeUntil.getMonth() + 3);
 
-    // Create LGA and Chairman (atomic)
-    const lga = await db.lGA.create({
-      data: {
-        lgaName: sanitizeInput(lgaName),
-        state,
-        chairmanName: sanitizeInput(chairmanName),
-        email: sanitizedEmail,
-        phone,
-        officeAddress: sanitizeInput(officeAddress),
-        population: population || null,
-        description: description || null,
-        sectors,
-        status: "PENDING",
-        isVerified: false,
-        freeUntil,
-        chairman: {
-          create: {
-            email: sanitizedEmail,
-            password: hashedPassword,
-            isActive: true,
+    let lga;
+
+    if (seededLGA) {
+      // Claim the seeded placeholder — update with real data and create chairman
+      lga = await db.lGA.update({
+        where: { id: seededLGA.id },
+        data: {
+          chairmanName: sanitizeInput(chairmanName),
+          email: sanitizedEmail,
+          phone,
+          officeAddress: sanitizeInput(officeAddress),
+          population: population || null,
+          description: description || null,
+          sectors,
+          status: "PENDING",
+          isVerified: false,
+          freeUntil,
+          chairman: {
+            create: {
+              email: sanitizedEmail,
+              password: hashedPassword,
+              isActive: true,
+            },
           },
         },
-      },
-      include: { chairman: { select: { id: true } } },
-    });
+        include: { chairman: { select: { id: true } } },
+      });
+    } else {
+      // No seed record — create fresh
+      lga = await db.lGA.create({
+        data: {
+          lgaName: sanitizeInput(lgaName),
+          state,
+          chairmanName: sanitizeInput(chairmanName),
+          email: sanitizedEmail,
+          phone,
+          officeAddress: sanitizeInput(officeAddress),
+          population: population || null,
+          description: description || null,
+          sectors,
+          status: "PENDING",
+          isVerified: false,
+          freeUntil,
+          chairman: {
+            create: {
+              email: sanitizedEmail,
+              password: hashedPassword,
+              isActive: true,
+            },
+          },
+        },
+        include: { chairman: { select: { id: true } } },
+      });
+    }
 
     const chairmanId = lga.chairman?.id;
     if (!chairmanId) throw new Error("Chairman not created.");
