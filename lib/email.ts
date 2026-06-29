@@ -2,7 +2,7 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const from        = process.env.RESEND_FROM    || "LGA Portal <noreply@lgaportal.ng>";
-const adminEmail  = process.env.ADMIN_EMAIL    || "admin@lgaportal.ng";
+const adminEmail  = process.env.ADMIN_EMAIL    || "admin@774ng.com";
 const appUrl      = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 
 // ─── Base HTML template ────────────────────────────────────────────────────
