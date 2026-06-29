@@ -1,12 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendTenureExpiryReminder } from "@/lib/email";
+import { isAdminRequest } from "@/lib/admin-auth";
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET ?? "";
 
 export async function POST(req: NextRequest) {
-  const secret = req.headers.get("x-admin-secret");
-  if (!ADMIN_SECRET || secret !== ADMIN_SECRET) {
+  if (!isAdminRequest(req)) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
@@ -64,3 +63,4 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ success: true, ...results });
 }
+

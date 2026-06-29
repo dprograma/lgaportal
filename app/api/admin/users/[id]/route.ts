@@ -1,18 +1,15 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { db as prisma } from "@/lib/db";
 import { $Enums } from "@prisma/client";
+import { isAdminRequest } from "@/lib/admin-auth";
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET ?? "";
 
-function auth(req: NextRequest) {
-  return req.headers.get("x-admin-secret") === ADMIN_SECRET;
-}
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!auth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isAdminRequest(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await params;
   const body = await req.json().catch(() => ({}));

@@ -1,12 +1,10 @@
-import { NextRequest } from "next/server";
+﻿import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { isAdminRequest } from "@/lib/admin-auth";
 
-function isAdmin(req: NextRequest) {
-  return req.headers.get("x-admin-secret") === process.env.ADMIN_SECRET;
-}
 
 export async function GET(req: NextRequest) {
-  if (!isAdmin(req)) {
+  if (!isAdminRequest(req)) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -24,7 +22,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!isAdmin(req)) {
+  if (!isAdminRequest(req)) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -68,3 +66,4 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: "Failed to create plan" }, { status: 500 });
   }
 }
+

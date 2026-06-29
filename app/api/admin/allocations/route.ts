@@ -1,12 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
+import { isAdminRequest } from "@/lib/admin-auth";
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET ?? "";
 
-function auth(req: NextRequest) {
-  return req.headers.get("x-admin-secret") === ADMIN_SECRET;
-}
 
 const recordSchema = z.object({
   lgaName: z.string().min(1),
@@ -20,7 +17,7 @@ const recordSchema = z.object({
 const bulkSchema = z.array(recordSchema);
 
 export async function GET(req: NextRequest) {
-  if (!auth(req)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!isAdminRequest(req)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
   const month  = searchParams.get("month") ? Number(searchParams.get("month")) : undefined;
@@ -50,7 +47,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  if (!auth(req)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!isAdminRequest(req)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   let body: unknown;
   try { body = await req.json(); } catch {
@@ -78,3 +75,4 @@ export async function POST(req: NextRequest) {
 
   return NextResponse.json({ created: created.length, message: `${created.length} record(s) upserted.` }, { status: 201 });
 }
+

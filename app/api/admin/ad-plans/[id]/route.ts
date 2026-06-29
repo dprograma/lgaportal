@@ -1,15 +1,13 @@
-import { NextRequest } from "next/server";
+﻿import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
+import { isAdminRequest } from "@/lib/admin-auth";
 
-function isAdmin(req: NextRequest) {
-  return req.headers.get("x-admin-secret") === process.env.ADMIN_SECRET;
-}
 
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!isAdmin(req)) {
+  if (!isAdminRequest(req)) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -49,7 +47,7 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!isAdmin(req)) {
+  if (!isAdminRequest(req)) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 

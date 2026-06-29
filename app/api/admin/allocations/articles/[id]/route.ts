@@ -1,8 +1,7 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { isAdminRequest } from "@/lib/admin-auth";
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET ?? "";
-function auth(req: NextRequest) { return req.headers.get("x-admin-secret") === ADMIN_SECRET; }
 
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -12,7 +11,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!auth(req)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!isAdminRequest(req)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   const { id } = await params;
   let body: Record<string, unknown> = {};
   try { body = await req.json(); } catch { /* ok */ }
@@ -36,7 +35,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  if (!auth(req)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  if (!isAdminRequest(req)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   const { id } = await params;
   await db.allocationArticle.delete({ where: { id } });
   return NextResponse.json({ success: true });

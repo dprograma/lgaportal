@@ -1,14 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { sendLGARejectionEmail } from "@/lib/email";
+import { isAdminRequest } from "@/lib/admin-auth";
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET ?? "";
 const schema = z.object({ reason: z.string().min(10, "Reason must be at least 10 characters") });
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const secret = req.headers.get("x-admin-secret");
-  if (!ADMIN_SECRET || secret !== ADMIN_SECRET) {
+  if (!isAdminRequest(req)) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 

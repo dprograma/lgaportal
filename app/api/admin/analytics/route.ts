@@ -1,10 +1,10 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { db as prisma } from "@/lib/db";
+import { isAdminRequest } from "@/lib/admin-auth";
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET ?? "";
 
 export async function GET(req: NextRequest) {
-  if (req.headers.get("x-admin-secret") !== ADMIN_SECRET) {
+  if (!isAdminRequest(req)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -88,3 +88,4 @@ export async function GET(req: NextRequest) {
     })),
   });
 }
+

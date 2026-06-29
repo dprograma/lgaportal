@@ -1,15 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { isAdminRequest } from "@/lib/admin-auth";
 
-function isAdmin(req: NextRequest) {
-  return req.headers.get("x-admin-secret") === process.env.ADMIN_SECRET;
-}
 
 const PAGE_SIZE = 20;
 
 // GET /api/admin/reports?status=&contentType=&page=
 export async function GET(req: NextRequest) {
-  if (!isAdmin(req)) {
+  if (!isAdminRequest(req)) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
@@ -43,7 +41,7 @@ export async function GET(req: NextRequest) {
 
 // PATCH /api/admin/reports — update flag report status
 export async function PATCH(req: NextRequest) {
-  if (!isAdmin(req)) {
+  if (!isAdminRequest(req)) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
@@ -76,3 +74,4 @@ export async function PATCH(req: NextRequest) {
 
   return NextResponse.json({ report });
 }
+

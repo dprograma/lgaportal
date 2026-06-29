@@ -1,18 +1,16 @@
-import { NextRequest } from "next/server";
+﻿import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { Resend } from "resend";
+import { isAdminRequest } from "@/lib/admin-auth";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-function isAdmin(req: NextRequest) {
-  return req.headers.get("x-admin-secret") === process.env.ADMIN_SECRET;
-}
 
 export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  if (!isAdmin(req)) {
+  if (!isAdminRequest(req)) {
     return Response.json({ error: "Forbidden" }, { status: 403 });
   }
 

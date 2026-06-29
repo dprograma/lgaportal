@@ -1,15 +1,12 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { db as prisma } from "@/lib/db";
 import { Prisma, $Enums } from "@prisma/client";
+import { isAdminRequest } from "@/lib/admin-auth";
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET ?? "";
 
-function auth(req: NextRequest) {
-  return req.headers.get("x-admin-secret") === ADMIN_SECRET;
-}
 
 export async function GET(req: NextRequest) {
-  if (!auth(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isAdminRequest(req)) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { searchParams } = req.nextUrl;
   const search  = searchParams.get("search") ?? "";
@@ -48,3 +45,4 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ users, total });
 }
+

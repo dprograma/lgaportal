@@ -1,12 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+﻿import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { sendLGAApprovalEmail } from "@/lib/email";
+import { isAdminRequest } from "@/lib/admin-auth";
 
-const ADMIN_SECRET = process.env.ADMIN_SECRET ?? "";
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const secret = req.headers.get("x-admin-secret");
-  if (!ADMIN_SECRET || secret !== ADMIN_SECRET) {
+  if (!isAdminRequest(req)) {
     return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   }
 
