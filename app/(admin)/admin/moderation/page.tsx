@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Loader2, ShieldAlert, ClipboardList, Trash2, BanIcon, Clock, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
-const ADMIN_SECRET = typeof window !== "undefined" ? (sessionStorage.getItem("adminSecret") ?? "") : "";
+const adminSecret = () => sessionStorage.getItem("adminSecret") ?? "";
 
 interface FlagReport {
   id: string;
@@ -28,7 +28,7 @@ interface ModerationAction {
 }
 
 function authHeader() {
-  return { "x-admin-secret": ADMIN_SECRET, "Content-Type": "application/json" };
+  return { "x-admin-secret": adminSecret(), "Content-Type": "application/json" };
 }
 
 export default function ModerationPage() {
@@ -312,3 +312,4 @@ export default function ModerationPage() {
     </div>
   );
 }
+

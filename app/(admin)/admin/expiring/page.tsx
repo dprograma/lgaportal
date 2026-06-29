@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { Clock, Building2, Mail, Phone, AlertCircle, CheckCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
-const ADMIN_SECRET = typeof window !== "undefined" ? (sessionStorage.getItem("adminSecret") ?? "") : "";
+const adminSecret = () => sessionStorage.getItem("adminSecret") ?? "";
 
 interface ExpiringLGA {
   id:           string;
@@ -31,7 +31,7 @@ export default function ExpiringTrialsPage() {
     setLoading(true);
     try {
       const res  = await fetch("/api/admin/lgas/expiring", {
-        headers: { "x-admin-secret": ADMIN_SECRET },
+        headers: { "x-admin-secret": adminSecret() },
       });
       const data = await res.json();
       setLgas(data.lgas ?? []);
@@ -49,7 +49,7 @@ export default function ExpiringTrialsPage() {
     try {
       const res  = await fetch("/api/admin/lgas/expiring", {
         method:  "POST",
-        headers: { "x-admin-secret": ADMIN_SECRET },
+        headers: { "x-admin-secret": adminSecret() },
       });
       const data = await res.json();
       if (!res.ok) { toast.error(data.error); return; }
@@ -168,3 +168,4 @@ export default function ExpiringTrialsPage() {
     </div>
   );
 }
+

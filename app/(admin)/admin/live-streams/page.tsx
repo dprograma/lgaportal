@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Radio, Plus, Trash2, ExternalLink, Clock } from "lucide-react";
 import { toast } from "sonner";
 
-const ADMIN_SECRET = typeof window !== "undefined" ? (sessionStorage.getItem("adminSecret") ?? "") : "";
+const adminSecret = () => sessionStorage.getItem("adminSecret") ?? "";
 
 type StreamStatus = "UPCOMING" | "LIVE" | "ENDED";
 
@@ -56,7 +56,7 @@ export default function AdminLiveStreamsPage() {
   const fetchStreams = useCallback(async () => {
     setLoading(true);
     try {
-      const res  = await fetch("/api/admin/live-streams", { headers: { "x-admin-secret": ADMIN_SECRET } });
+      const res  = await fetch("/api/admin/live-streams", { headers: { "x-admin-secret": adminSecret() } });
       const data = await res.json();
       setStreams(data.streams ?? []);
     } catch { toast.error("Failed to load streams."); }
@@ -68,7 +68,7 @@ export default function AdminLiveStreamsPage() {
   useEffect(() => {
     if (lgaSearch.length < 2) { setLgaOptions([]); return; }
     const t = setTimeout(async () => {
-      const res = await fetch(`/api/admin/lgas?limit=10&search=${encodeURIComponent(lgaSearch)}&status=APPROVED`, { headers: { "x-admin-secret": ADMIN_SECRET } });
+      const res = await fetch(`/api/admin/lgas?limit=10&search=${encodeURIComponent(lgaSearch)}&status=APPROVED`, { headers: { "x-admin-secret": adminSecret() } });
       const data = await res.json();
       setLgaOptions(data.lgas ?? []);
     }, 300);
@@ -80,7 +80,7 @@ export default function AdminLiveStreamsPage() {
     try {
       await fetch(`/api/admin/live-streams/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", "x-admin-secret": ADMIN_SECRET },
+        headers: { "Content-Type": "application/json", "x-admin-secret": adminSecret() },
         body: JSON.stringify({ status }),
       });
       fetchStreams();
@@ -92,7 +92,7 @@ export default function AdminLiveStreamsPage() {
     if (!confirm("Delete this live stream?")) return;
     setActing(id);
     try {
-      await fetch(`/api/admin/live-streams/${id}`, { method: "DELETE", headers: { "x-admin-secret": ADMIN_SECRET } });
+      await fetch(`/api/admin/live-streams/${id}`, { method: "DELETE", headers: { "x-admin-secret": adminSecret() } });
       toast.success("Deleted.");
       fetchStreams();
     } catch { toast.error("Failed."); }
@@ -106,7 +106,7 @@ export default function AdminLiveStreamsPage() {
     try {
       const res = await fetch("/api/admin/live-streams", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-secret": ADMIN_SECRET },
+        headers: { "Content-Type": "application/json", "x-admin-secret": adminSecret() },
         body: JSON.stringify({ ...form, lgaId: form.lgaId || undefined }),
       });
       if (!res.ok) { const d = await res.json(); toast.error(d.error); return; }
@@ -287,3 +287,4 @@ export default function AdminLiveStreamsPage() {
     </div>
   );
 }
+

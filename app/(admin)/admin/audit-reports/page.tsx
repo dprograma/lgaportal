@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { ClipboardList, Plus, Search, Trash2, Eye, EyeOff, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
-const ADMIN_SECRET = typeof window !== "undefined" ? (sessionStorage.getItem("adminSecret") ?? "") : "";
+const adminSecret = () => sessionStorage.getItem("adminSecret") ?? "";
 
 interface AuditReport {
   id: string;
@@ -45,7 +45,7 @@ export default function AdminAuditReportsPage() {
     setLoading(true);
     const params = new URLSearchParams({ limit: String(PAGE), offset: String(page * PAGE), ...(dSearch ? { search: dSearch } : {}) });
     try {
-      const res = await fetch(`/api/admin/audit-reports?${params}`, { headers: { "x-admin-secret": ADMIN_SECRET } });
+      const res = await fetch(`/api/admin/audit-reports?${params}`, { headers: { "x-admin-secret": adminSecret() } });
       const data = await res.json();
       setReports(data.reports ?? []);
       setTotal(data.total ?? 0);
@@ -59,7 +59,7 @@ export default function AdminAuditReportsPage() {
     if (lgaSearch.length < 2) { setLgaOptions([]); return; }
     const t = setTimeout(async () => {
       const res = await fetch(`/api/admin/lgas?limit=10&search=${encodeURIComponent(lgaSearch)}&status=APPROVED`, {
-        headers: { "x-admin-secret": ADMIN_SECRET },
+        headers: { "x-admin-secret": adminSecret() },
       });
       const data = await res.json();
       setLgaOptions(data.lgas ?? []);
@@ -74,7 +74,7 @@ export default function AdminAuditReportsPage() {
     try {
       const res = await fetch("/api/admin/audit-reports", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-secret": ADMIN_SECRET },
+        headers: { "Content-Type": "application/json", "x-admin-secret": adminSecret() },
         body: JSON.stringify({ ...form, financialYear: Number(form.financialYear) }),
       });
       const data = await res.json();
@@ -92,7 +92,7 @@ export default function AdminAuditReportsPage() {
     try {
       await fetch(`/api/admin/audit-reports/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", "x-admin-secret": ADMIN_SECRET },
+        headers: { "Content-Type": "application/json", "x-admin-secret": adminSecret() },
         body: JSON.stringify({ isPublished: !current }),
       });
       fetchReports();
@@ -104,7 +104,7 @@ export default function AdminAuditReportsPage() {
     if (!confirm("Delete this audit report record?")) return;
     setActing(id);
     try {
-      await fetch(`/api/admin/audit-reports/${id}`, { method: "DELETE", headers: { "x-admin-secret": ADMIN_SECRET } });
+      await fetch(`/api/admin/audit-reports/${id}`, { method: "DELETE", headers: { "x-admin-secret": adminSecret() } });
       toast.success("Deleted.");
       fetchReports();
     } catch { toast.error("Failed."); }
@@ -290,3 +290,4 @@ export default function AdminAuditReportsPage() {
     </div>
   );
 }
+

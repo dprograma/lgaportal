@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FileText, Plus, Search, Trash2, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
-const ADMIN_SECRET = typeof window !== "undefined" ? (sessionStorage.getItem("adminSecret") ?? "") : "";
+const adminSecret = () => sessionStorage.getItem("adminSecret") ?? "";
 
 interface Contract {
   id: string;
@@ -51,7 +51,7 @@ export default function AdminProcurementPage() {
     setLoading(true);
     const params = new URLSearchParams({ limit: String(PAGE), offset: String(page * PAGE), ...(dSearch ? { search: dSearch } : {}) });
     try {
-      const res = await fetch(`/api/admin/procurement?${params}`, { headers: { "x-admin-secret": ADMIN_SECRET } });
+      const res = await fetch(`/api/admin/procurement?${params}`, { headers: { "x-admin-secret": adminSecret() } });
       const data = await res.json();
       setContracts(data.contracts ?? []);
       setTotal(data.total ?? 0);
@@ -66,7 +66,7 @@ export default function AdminProcurementPage() {
     if (lgaSearch.length < 2) { setLgaOptions([]); return; }
     const t = setTimeout(async () => {
       const res = await fetch(`/api/admin/lgas?limit=10&search=${encodeURIComponent(lgaSearch)}&status=APPROVED`, {
-        headers: { "x-admin-secret": ADMIN_SECRET },
+        headers: { "x-admin-secret": adminSecret() },
       });
       const data = await res.json();
       setLgaOptions(data.lgas ?? []);
@@ -83,7 +83,7 @@ export default function AdminProcurementPage() {
     try {
       const res = await fetch("/api/admin/procurement", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-secret": ADMIN_SECRET },
+        headers: { "Content-Type": "application/json", "x-admin-secret": adminSecret() },
         body: JSON.stringify({ ...form, value: kobo }),
       });
       const data = await res.json();
@@ -100,7 +100,7 @@ export default function AdminProcurementPage() {
     try {
       await fetch(`/api/admin/procurement/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", "x-admin-secret": ADMIN_SECRET },
+        headers: { "Content-Type": "application/json", "x-admin-secret": adminSecret() },
         body: JSON.stringify({ isPublished: !current }),
       });
       fetchContracts();
@@ -112,7 +112,7 @@ export default function AdminProcurementPage() {
     if (!confirm("Delete this contract record?")) return;
     setActing(id);
     try {
-      await fetch(`/api/admin/procurement/${id}`, { method: "DELETE", headers: { "x-admin-secret": ADMIN_SECRET } });
+      await fetch(`/api/admin/procurement/${id}`, { method: "DELETE", headers: { "x-admin-secret": adminSecret() } });
       toast.success("Deleted.");
       fetchContracts();
     } catch { toast.error("Failed."); }
@@ -293,3 +293,4 @@ export default function AdminProcurementPage() {
     </div>
   );
 }
+

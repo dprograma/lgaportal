@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-const ADMIN_SECRET = typeof window !== "undefined" ? (sessionStorage.getItem("adminSecret") ?? "") : "";
+const adminSecret = () => sessionStorage.getItem("adminSecret") ?? "";
 
 type Status = "ALL" | "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
 
@@ -82,7 +82,7 @@ export default function AdminLGAsPage() {
     });
     try {
       const res = await fetch(`/api/admin/lgas?${params}`, {
-        headers: { "x-admin-secret": ADMIN_SECRET },
+        headers: { "x-admin-secret": adminSecret() },
       });
       const data = await res.json();
       setLgas(data.lgas ?? []);
@@ -101,7 +101,7 @@ export default function AdminLGAsPage() {
     try {
       const res = await fetch(`/api/admin/lgas/${id}/approve`, {
         method: "POST",
-        headers: { "x-admin-secret": ADMIN_SECRET },
+        headers: { "x-admin-secret": adminSecret() },
       });
       const data = await res.json();
       if (!res.ok) { toast.error(data.error); return; }
@@ -120,7 +120,7 @@ export default function AdminLGAsPage() {
     try {
       const res = await fetch(`/api/admin/lgas/${rejectId}/reject`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-secret": ADMIN_SECRET },
+        headers: { "Content-Type": "application/json", "x-admin-secret": adminSecret() },
         body: JSON.stringify({ reason: rejectReason }),
       });
       const data = await res.json();
@@ -138,7 +138,7 @@ export default function AdminLGAsPage() {
     try {
       const res = await fetch(`/api/admin/lgas/${id}/status`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-secret": ADMIN_SECRET },
+        headers: { "Content-Type": "application/json", "x-admin-secret": adminSecret() },
         body: JSON.stringify({ status }),
       });
       const data = await res.json();
@@ -396,3 +396,4 @@ export default function AdminLGAsPage() {
     </div>
   );
 }
+

@@ -7,7 +7,7 @@ import {
 } from "recharts";
 import { Building2, Users, FileText, DollarSign, TrendingUp, Activity } from "lucide-react";
 
-const ADMIN_SECRET = typeof window !== "undefined" ? (sessionStorage.getItem("adminSecret") ?? "") : "";
+const adminSecret = () => sessionStorage.getItem("adminSecret") ?? "";
 
 interface AnalyticsData {
   lgas: {
@@ -68,7 +68,7 @@ export default function AdminAnalyticsPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetch("/api/admin/analytics", { headers: { "x-admin-secret": ADMIN_SECRET } })
+    fetch("/api/admin/analytics", { headers: { "x-admin-secret": adminSecret() } })
       .then((r) => r.json())
       .then(setData)
       .catch(() => {})
@@ -208,3 +208,4 @@ export default function AdminAnalyticsPage() {
     </div>
   );
 }
+

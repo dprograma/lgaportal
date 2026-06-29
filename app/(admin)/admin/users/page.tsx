@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-const ADMIN_SECRET = typeof window !== "undefined" ? (sessionStorage.getItem("adminSecret") ?? "") : "";
+const adminSecret = () => sessionStorage.getItem("adminSecret") ?? "";
 
 type RoleFilter   = "ALL" | "CITIZEN" | "ADVERTISER" | "LGA_CHAIRMAN" | "LGA_STAFF";
 type StatusFilter = "ALL" | "ACTIVE" | "BANNED" | "SUSPENDED";
@@ -84,7 +84,7 @@ export default function AdminUsersPage() {
     });
     try {
       const res = await fetch(`/api/admin/users?${params}`, {
-        headers: { "x-admin-secret": ADMIN_SECRET },
+        headers: { "x-admin-secret": adminSecret() },
       });
       const data = await res.json();
       setUsers(data.users ?? []);
@@ -103,7 +103,7 @@ export default function AdminUsersPage() {
     try {
       const res = await fetch(`/api/admin/users/${userId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", "x-admin-secret": ADMIN_SECRET },
+        headers: { "Content-Type": "application/json", "x-admin-secret": adminSecret() },
         body: JSON.stringify({ action, ...extra }),
       });
       const data = await res.json();
@@ -357,3 +357,4 @@ export default function AdminUsersPage() {
     </div>
   );
 }
+

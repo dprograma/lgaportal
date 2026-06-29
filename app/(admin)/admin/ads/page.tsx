@@ -32,7 +32,7 @@ interface AdPlan {
   sortOrder: number;
 }
 
-const adminHeaders = { "x-admin-secret": typeof window !== "undefined" ? (sessionStorage.getItem("adminSecret") ?? "") : "" };
+const adminSecret = () => sessionStorage.getItem("adminSecret") ?? "";
 
 const statusColors: Record<string, string> = {
   PENDING_REVIEW: "bg-yellow-100 text-yellow-700",
@@ -83,7 +83,7 @@ export default function AdminAdsPage() {
     setLoading(true);
     try {
       if (tab === "plans") {
-        const r = await fetch("/api/admin/ad-plans", { headers: adminHeaders });
+        const r = await fetch("/api/admin/ad-plans", { headers: { "x-admin-secret": adminSecret() } });
         const data = await r.json();
         if (data.plans) setPlans(data.plans);
       } else {
@@ -91,7 +91,7 @@ export default function AdminAdsPage() {
         const url = status
           ? `/api/admin/ads?status=${status}&page=1`
           : "/api/admin/ads?page=1";
-        const r = await fetch(url, { headers: adminHeaders });
+        const r = await fetch(url, { headers: { "x-admin-secret": adminSecret() } });
         const data = await r.json();
         if (data.campaigns) setCampaigns(data.campaigns);
       }
@@ -107,7 +107,7 @@ export default function AdminAdsPage() {
     try {
       const r = await fetch(`/api/admin/ads/${id}/approve`, {
         method: "POST",
-        headers: adminHeaders,
+        headers: { "x-admin-secret": adminSecret() },
       });
       if (!r.ok) throw new Error();
       setCampaigns((prev) =>
@@ -130,7 +130,7 @@ export default function AdminAdsPage() {
     try {
       const r = await fetch(`/api/admin/ads/${rejectId}/reject`, {
         method: "POST",
-        headers: { ...adminHeaders, "Content-Type": "application/json" },
+        headers: { "x-admin-secret": adminSecret(), "Content-Type": "application/json" },
         body: JSON.stringify({ reason: rejectReason }),
       });
       if (!r.ok) throw new Error();
@@ -168,7 +168,7 @@ export default function AdminAdsPage() {
       const method = editingPlan ? "PATCH" : "POST";
       const r = await fetch(url, {
         method,
-        headers: { ...adminHeaders, "Content-Type": "application/json" },
+        headers: { "x-admin-secret": adminSecret(), "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       if (!r.ok) throw new Error();
@@ -187,7 +187,7 @@ export default function AdminAdsPage() {
     try {
       const r = await fetch(`/api/admin/ad-plans/${id}`, {
         method: "DELETE",
-        headers: adminHeaders,
+        headers: { "x-admin-secret": adminSecret() },
       });
       if (!r.ok) throw new Error();
       toast.success("Plan deactivated");
@@ -560,3 +560,4 @@ export default function AdminAdsPage() {
     </div>
   );
 }
+

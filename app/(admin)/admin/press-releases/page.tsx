@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Newspaper, Plus, Search, Check, X, Trash2, Eye, EyeOff, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 
-const ADMIN_SECRET = typeof window !== "undefined" ? (sessionStorage.getItem("adminSecret") ?? "") : "";
+const adminSecret = () => sessionStorage.getItem("adminSecret") ?? "";
 
 type Status = "PENDING" | "PUBLISHED" | "REJECTED" | "DRAFT";
 type EntityType = "LGA" | "STATE" | "FEDERAL";
@@ -64,7 +64,7 @@ export default function AdminPressReleasesPage() {
     if (dQ)          params.set("q",      dQ);
     if (statusFilter) params.set("status", statusFilter);
     try {
-      const res = await fetch(`/api/admin/press-releases?${params}`, { headers: { "x-admin-secret": ADMIN_SECRET } });
+      const res = await fetch(`/api/admin/press-releases?${params}`, { headers: { "x-admin-secret": adminSecret() } });
       const data = await res.json();
       setReleases(data.releases ?? []);
       setTotal(data.total ?? 0);
@@ -77,7 +77,7 @@ export default function AdminPressReleasesPage() {
   useEffect(() => {
     if (lgaSearch.length < 2) { setLgaOptions([]); return; }
     const t = setTimeout(async () => {
-      const res = await fetch(`/api/admin/lgas?limit=10&search=${encodeURIComponent(lgaSearch)}&status=APPROVED`, { headers: { "x-admin-secret": ADMIN_SECRET } });
+      const res = await fetch(`/api/admin/lgas?limit=10&search=${encodeURIComponent(lgaSearch)}&status=APPROVED`, { headers: { "x-admin-secret": adminSecret() } });
       const data = await res.json();
       setLgaOptions(data.lgas ?? []);
     }, 300);
@@ -89,7 +89,7 @@ export default function AdminPressReleasesPage() {
     try {
       await fetch(`/api/admin/press-releases/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", "x-admin-secret": ADMIN_SECRET },
+        headers: { "Content-Type": "application/json", "x-admin-secret": adminSecret() },
         body: JSON.stringify({ action: "publish" }),
       });
       toast.success("Press release published.");
@@ -104,7 +104,7 @@ export default function AdminPressReleasesPage() {
     try {
       await fetch(`/api/admin/press-releases/${rejectModal.id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", "x-admin-secret": ADMIN_SECRET },
+        headers: { "Content-Type": "application/json", "x-admin-secret": adminSecret() },
         body: JSON.stringify({ action: "reject", reason: rejectReason }),
       });
       toast.success("Rejected.");
@@ -119,7 +119,7 @@ export default function AdminPressReleasesPage() {
     if (!confirm("Delete this press release permanently?")) return;
     setActing(id);
     try {
-      await fetch(`/api/admin/press-releases/${id}`, { method: "DELETE", headers: { "x-admin-secret": ADMIN_SECRET } });
+      await fetch(`/api/admin/press-releases/${id}`, { method: "DELETE", headers: { "x-admin-secret": adminSecret() } });
       toast.success("Deleted.");
       fetchReleases();
     } catch { toast.error("Failed."); }
@@ -133,7 +133,7 @@ export default function AdminPressReleasesPage() {
     try {
       const res = await fetch("/api/admin/press-releases", {
         method: "POST",
-        headers: { "Content-Type": "application/json", "x-admin-secret": ADMIN_SECRET },
+        headers: { "Content-Type": "application/json", "x-admin-secret": adminSecret() },
         body: JSON.stringify({
           ...form,
           lgaId: form.lgaId || undefined,
@@ -413,3 +413,4 @@ export default function AdminPressReleasesPage() {
     </div>
   );
 }
+
