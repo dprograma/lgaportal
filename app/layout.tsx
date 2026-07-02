@@ -12,40 +12,41 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "LGA Citizen Portal — Nigeria's Local Government Transparency Platform",
-    template: "%s | LGA Citizen Portal",
+    default: "774ng.com — Invest in Nigeria's 774 LGAs",
+    template: "%s | 774ng.com",
   },
   description:
-    "Track federal allocations, monitor LGA projects, and engage with your local government across all 774 LGAs in Nigeria. Real transparency, real accountability.",
+    "Discover investment opportunities, natural endowments, and development projects across all 774 Local Government Areas in Nigeria. Connect with verified LGAs ready to grow.",
   keywords: [
-    "LGA",
-    "Local Government Area",
-    "Nigeria",
-    "citizen portal",
-    "federal allocation",
-    "government transparency",
-    "LGA projects",
-    "accountability",
+    "LGA investment",
+    "Nigeria investment opportunities",
+    "Local Government Area Nigeria",
+    "LGA endowments",
     "Nigerian governance",
     "774 LGAs",
+    "LGA projects",
+    "Nigeria development",
+    "citizen portal Nigeria",
+    "government transparency Nigeria",
   ],
-  authors: [{ name: "LGA Citizen Portal" }],
-  creator: "LGA Citizen Portal",
-  publisher: "LGA Citizen Portal",
+  authors: [{ name: "774ng.com" }],
+  creator: "774ng.com",
+  publisher: "774ng.com",
   robots: { index: true, follow: true },
   openGraph: {
     type: "website",
     locale: "en_NG",
-    url: "https://lgaportal.ng",
-    siteName: "LGA Citizen Portal",
-    title: "LGA Citizen Portal — Nigeria's Local Government Transparency Platform",
+    url: "https://774ng.com",
+    siteName: "774ng.com",
+    title: "774ng.com — Invest in Nigeria's 774 LGAs",
     description:
-      "Track federal allocations, monitor LGA projects, and engage with your local government across all 774 LGAs in Nigeria.",
+      "Discover investment opportunities, natural endowments, and development projects across all 774 Local Government Areas in Nigeria. Connect with verified LGAs ready to grow.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "LGA Citizen Portal",
-    description: "Nigeria's leading platform for local government transparency.",
+    title: "774ng.com — Invest in Nigeria's 774 LGAs",
+    description:
+      "Discover investment opportunities and natural endowments across Nigeria's 774 LGAs. Connect with verified local governments ready to partner with investors.",
   },
 };
 
