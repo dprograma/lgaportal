@@ -72,13 +72,14 @@ export default function LGALoginPage() {
         return;
       }
 
-      // Send OTP then redirect to verify
+      // Send OTP then redirect to verify (pass lgaId so it can be stored after verification)
       await fetch("/api/otp/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ identifier: data.email, purpose: "LGA_LOGIN" }),
       });
-      router.push(`/verify-otp?email=${encodeURIComponent(data.email)}&purpose=LGA_LOGIN&next=/lga-dashboard`);
+      const lgaId = json.chairman?.lgaId ?? "";
+      router.push(`/verify-otp?email=${encodeURIComponent(data.email)}&purpose=LGA_LOGIN&next=/lga-dashboard&lgaId=${encodeURIComponent(lgaId)}`);
     } catch {
       toast.error("Something went wrong. Please try again.");
     } finally {

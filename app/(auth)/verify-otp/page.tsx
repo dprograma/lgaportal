@@ -14,6 +14,8 @@ function OTPForm() {
   const purpose      = searchParams.get("purpose") ?? "CITIZEN_LOGIN";
   const next         = searchParams.get("next") ?? (purpose === "LGA_LOGIN" ? "/lga-dashboard" : "/");
 
+  const lgaId = searchParams.get("lgaId") ?? "";
+
   const [digits,    setDigits]    = useState<string[]>(Array(6).fill(""));
   const [loading,   setLoading]   = useState(false);
   const [resending, setResending] = useState(false);
@@ -81,6 +83,11 @@ function OTPForm() {
         return;
       }
 
+      // For LGA login: store lgaId in sessionStorage so the dashboard can identify this session
+      if (purpose === "LGA_LOGIN" && lgaId) {
+        sessionStorage.setItem("lgaId", lgaId);
+      }
+
       setSuccess(true);
       toast.success("Identity verified!");
       setTimeout(() => router.push(next), 1200);
@@ -89,7 +96,7 @@ function OTPForm() {
     } finally {
       setLoading(false);
     }
-  }, [email, purpose, next, loading, locked, router]);
+  }, [email, purpose, next, lgaId, loading, locked, router]);
 
   const handleResend = async () => {
     if (!canResend || resending) return;
