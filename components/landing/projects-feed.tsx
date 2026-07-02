@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   MapPin,
@@ -11,141 +11,80 @@ import {
   HeartPulse,
   Droplets,
   GraduationCap,
-  Store,
-  Dumbbell,
+  Wheat,
+  Building2,
   type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 
 interface Project {
-  id: number;
+  id: string;
+  slug: string | null;
   title: string;
-  lga: string;
-  state: string;
-  status: "Ongoing" | "Completed" | "Planned";
-  progress: number;
+  description: string;
   category: string;
-  date: string;
-  budget: string;
-  icon: LucideIcon;
-  iconBg: string;
-  likes: number;
-  comments: number;
+  status: string;
+  budget: string | null;
+  images: string[];
+  createdAt: string;
+  lga: { lgaName: string; state: string };
+  _count: { reactions: number; comments: number };
 }
 
-const projects: Project[] = [
-  {
-    id: 1,
-    title: "Marina Road Rehabilitation",
-    lga: "Lagos Island",
-    state: "Lagos",
-    status: "Ongoing",
-    progress: 65,
-    category: "Infrastructure",
-    date: "Mar 2025",
-    budget: "₦450M",
-    icon: HardHat,
-    iconBg: "from-slate-600 to-slate-800",
-    likes: 142,
-    comments: 38,
-  },
-  {
-    id: 2,
-    title: "Primary Health Centre Renovation",
-    lga: "Gwale",
-    state: "Kano",
-    status: "Completed",
-    progress: 100,
-    category: "Healthcare",
-    date: "Jan 2025",
-    budget: "₦120M",
-    icon: HeartPulse,
-    iconBg: "from-red-600 to-red-800",
-    likes: 89,
-    comments: 21,
-  },
-  {
-    id: 3,
-    title: "10 New Borehole Installations",
-    lga: "Udi",
-    state: "Enugu",
-    status: "Completed",
-    progress: 100,
-    category: "Water & Sanitation",
-    date: "Feb 2025",
-    budget: "₦75M",
-    icon: Droplets,
-    iconBg: "from-blue-600 to-blue-800",
-    likes: 203,
-    comments: 47,
-  },
-  {
-    id: 4,
-    title: "Public Primary School Block",
-    lga: "Ikeja",
-    state: "Lagos",
-    status: "Ongoing",
-    progress: 40,
-    category: "Education",
-    date: "Apr 2025",
-    budget: "₦280M",
-    icon: GraduationCap,
-    iconBg: "from-amber-600 to-amber-800",
-    likes: 67,
-    comments: 15,
-  },
-  {
-    id: 5,
-    title: "Market Redevelopment Project",
-    lga: "Kano Municipal",
-    state: "Kano",
-    status: "Planned",
-    progress: 10,
-    category: "Commerce",
-    date: "May 2025",
-    budget: "₦320M",
-    icon: Store,
-    iconBg: "from-purple-600 to-purple-800",
-    likes: 55,
-    comments: 12,
-  },
-  {
-    id: 6,
-    title: "Youth Sports Complex",
-    lga: "Port Harcourt City",
-    state: "Rivers",
-    status: "Ongoing",
-    progress: 55,
-    category: "Sports & Recreation",
-    date: "Mar 2025",
-    budget: "₦190M",
-    icon: Dumbbell,
-    iconBg: "from-green-600 to-green-800",
-    likes: 178,
-    comments: 52,
-  },
+type FilterType = "All" | "IN_PROGRESS" | "COMPLETED" | "PENDING";
+const filters: { label: string; value: FilterType }[] = [
+  { label: "All",       value: "All"         },
+  { label: "Ongoing",   value: "IN_PROGRESS" },
+  { label: "Completed", value: "COMPLETED"   },
+  { label: "Planned",   value: "PENDING"     },
 ];
 
-const filters = ["All", "Ongoing", "Completed", "Planned"] as const;
-type FilterType = (typeof filters)[number];
-
-const containerVariants = {
-  hidden: {},
-  visible: { transition: { staggerChildren: 0.1 } },
+const categoryMeta: Record<string, { icon: LucideIcon; bg: string }> = {
+  ROADS_INFRASTRUCTURE: { icon: HardHat,      bg: "from-slate-600 to-slate-800"   },
+  HEALTH:               { icon: HeartPulse,   bg: "from-red-600 to-red-800"       },
+  WATER:                { icon: Droplets,     bg: "from-blue-600 to-blue-800"     },
+  EDUCATION:            { icon: GraduationCap,bg: "from-amber-600 to-amber-800"   },
+  AGRICULTURE:          { icon: Wheat,        bg: "from-green-600 to-green-800"   },
+  OTHER:                { icon: Building2,    bg: "from-purple-600 to-purple-800" },
 };
 
-const cardVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.45 } },
+const statusMeta: Record<string, { label: string; color: string; progress: number }> = {
+  IN_PROGRESS: { label: "Ongoing",   color: "bg-blue-100 text-blue-700",   progress: 50  },
+  COMPLETED:   { label: "Completed", color: "bg-green-100 text-green-700", progress: 100 },
+  PENDING:     { label: "Planned",   color: "bg-amber-100 text-amber-700", progress: 5   },
 };
+
+function fmtBudget(raw: string | null): string {
+  if (!raw) return "";
+  const n = Number(raw);
+  if (isNaN(n)) return raw;
+  if (n >= 1_000_000_000) return `₦${(n / 1_000_000_000).toFixed(1)}B`;
+  if (n >= 1_000_000)     return `₦${(n / 1_000_000).toFixed(0)}M`;
+  return `₦${n.toLocaleString()}`;
+}
+
+function fmtMonth(iso: string) {
+  return new Date(iso).toLocaleDateString("en-NG", { month: "short", year: "numeric" });
+}
+
+const containerVariants = { hidden: {}, visible: { transition: { staggerChildren: 0.1 } } };
+const cardVariants = { hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0, transition: { duration: 0.45 } } };
 
 export default function ProjectsFeed() {
-  const [activeFilter, setActiveFilter] = useState<FilterType>("All");
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [loading, setLoading]   = useState(true);
+  const [filter, setFilter]     = useState<FilterType>("All");
+
+  useEffect(() => {
+    fetch("/api/projects?limit=12")
+      .then((r) => r.json())
+      .then((d) => setProjects(d.projects ?? []))
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
 
   const filtered =
-    activeFilter === "All"
-      ? projects
-      : projects.filter((p) => p.status === activeFilter);
+    filter === "All" ? projects : projects.filter((p) => p.status === filter);
 
   return (
     <section id="projects" className="py-20 lg:py-28 bg-slate-50">
@@ -177,8 +116,7 @@ export default function ProjectsFeed() {
             transition={{ delay: 0.2 }}
             className="text-base text-slate-500 max-w-xl mx-auto leading-relaxed"
           >
-            Real projects, real progress. Follow development happening in LGAs
-            nationwide.
+            Real projects, real progress. Follow development happening in LGAs nationwide.
           </motion.p>
         </div>
 
@@ -186,125 +124,143 @@ export default function ProjectsFeed() {
         <div className="flex gap-1 p-1 bg-slate-100 rounded-2xl w-fit mx-auto mb-10">
           {filters.map((f) => (
             <button
-              key={f}
-              onClick={() => setActiveFilter(f)}
+              key={f.value}
+              onClick={() => setFilter(f.value)}
               className={
-                activeFilter === f
+                filter === f.value
                   ? "bg-white text-green-700 shadow-sm px-6 py-2.5 rounded-xl text-sm font-semibold transition-all"
                   : "text-slate-500 px-6 py-2.5 rounded-xl text-sm font-medium transition-all hover:text-slate-700"
               }
             >
-              {f}
+              {f.label}
             </button>
           ))}
         </div>
 
-        {/* Projects grid */}
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeFilter}
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-            exit={{ opacity: 0, transition: { duration: 0.15 } }}
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
-          >
-            {filtered.map((project) => (
-              <motion.div
-                key={project.id}
-                variants={cardVariants}
-                whileHover={{ y: -3 }}
-                className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg hover:border-green-300 transition-all duration-300"
-              >
-                {/* Icon header */}
-                <div
-                  className={`h-28 bg-gradient-to-br ${project.iconBg} flex items-center justify-center relative`}
-                >
-                  <div className="h-16 w-16 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center">
-                    <project.icon className="h-8 w-8 text-white" strokeWidth={1.5} />
-                  </div>
-                  {/* Status badge */}
-                  <span
-                    className={`absolute top-3 right-3 px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                      project.status === "Completed"
-                        ? "bg-green-100 text-green-700"
-                        : project.status === "Ongoing"
-                        ? "bg-blue-100 text-blue-700"
-                        : "bg-amber-100 text-amber-700"
-                    }`}
-                  >
-                    {project.status}
-                  </span>
-                </div>
-
-                <div className="p-4">
-                  <span className="text-[10px] font-bold text-green-700 uppercase tracking-wide">
-                    {project.category}
-                  </span>
-                  <h3 className="font-bold text-slate-900 text-sm mt-1 mb-1 line-clamp-2">
-                    {project.title}
-                  </h3>
-                  <p className="text-xs text-slate-500 mb-3 flex items-center gap-1">
-                    <MapPin className="h-3 w-3 shrink-0" />
-                    {project.lga} LGA, {project.state}
-                  </p>
-
-                  {/* Progress */}
-                  <div className="mb-3">
-                    <div className="flex justify-between text-[10px] text-slate-400 mb-1">
-                      <span>Progress</span>
-                      <span>{project.progress}%</span>
-                    </div>
-                    <div className="h-1.5 bg-slate-100 rounded-full">
-                      <div
-                        className={`h-full rounded-full transition-all ${
-                          project.status === "Completed"
-                            ? "bg-green-500"
-                            : project.status === "Ongoing"
-                            ? "bg-blue-500"
-                            : "bg-amber-400"
-                        }`}
-                        style={{ width: `${project.progress}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-slate-700">
-                      {project.budget}
-                    </span>
-                    <div className="flex items-center gap-3 text-xs text-slate-400">
-                      <button className="flex items-center gap-1 hover:text-green-600 transition-colors">
-                        <Heart className="h-3.5 w-3.5" />
-                        {project.likes}
-                      </button>
-                      <button className="flex items-center gap-1 hover:text-green-600 transition-colors">
-                        <MessageCircle className="h-3.5 w-3.5" />
-                        {project.comments}
-                      </button>
-                      <button className="hover:text-green-600 transition-colors">
-                        <Share2 className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
+        {/* Loading */}
+        {loading && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="bg-white rounded-2xl border border-slate-200 h-72 animate-pulse" />
             ))}
-          </motion.div>
-        </AnimatePresence>
+          </div>
+        )}
 
-        {/* Bottom actions */}
-        <div className="mt-12 flex flex-col items-center gap-3">
-          <Link
-            href="/projects"
-            className="px-7 py-3 rounded-xl bg-green-700 hover:bg-green-800 text-white font-semibold text-sm transition-colors shadow-sm inline-flex items-center gap-2"
-          >
-            Explore All Projects →
-          </Link>
-          <p className="text-xs text-slate-400">
-            1,893 projects tracked across 142 LGAs
-          </p>
-        </div>
+        {/* Empty state */}
+        {!loading && filtered.length === 0 && (
+          <div className="text-center py-20 text-slate-400">
+            <HardHat className="h-12 w-12 mx-auto mb-4 opacity-30" />
+            <p className="text-lg font-semibold mb-1">No projects yet</p>
+            <p className="text-sm">Projects will appear here as LGAs publish them.</p>
+          </div>
+        )}
+
+        {/* Grid */}
+        {!loading && filtered.length > 0 && (
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={filter}
+              variants={containerVariants}
+              initial="hidden"
+              animate="visible"
+              exit={{ opacity: 0, transition: { duration: 0.15 } }}
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
+            >
+              {filtered.slice(0, 6).map((project) => {
+                const catMeta  = categoryMeta[project.category] ?? categoryMeta.OTHER;
+                const statMeta = statusMeta[project.status]    ?? statusMeta.PENDING;
+                const Icon     = catMeta.icon;
+                const budget   = fmtBudget(project.budget);
+
+                return (
+                  <motion.div
+                    key={project.id}
+                    variants={cardVariants}
+                    whileHover={{ y: -3 }}
+                    className="bg-white rounded-2xl border border-slate-200 overflow-hidden hover:shadow-lg hover:border-green-300 transition-all duration-300"
+                  >
+                    {/* Icon header */}
+                    <div className={`h-28 bg-gradient-to-br ${catMeta.bg} flex items-center justify-center relative`}>
+                      <div className="h-16 w-16 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center">
+                        <Icon className="h-8 w-8 text-white" strokeWidth={1.5} />
+                      </div>
+                      <span className={`absolute top-3 right-3 px-2.5 py-1 rounded-full text-[10px] font-bold ${statMeta.color}`}>
+                        {statMeta.label}
+                      </span>
+                    </div>
+
+                    <div className="p-4">
+                      <span className="text-[10px] font-bold text-green-700 uppercase tracking-wide">
+                        {project.category.replace(/_/g, " ")}
+                      </span>
+                      <h3 className="font-bold text-slate-900 text-sm mt-1 mb-1 line-clamp-2">
+                        {project.title}
+                      </h3>
+                      <p className="text-xs text-slate-500 mb-3 flex items-center gap-1">
+                        <MapPin className="h-3 w-3 shrink-0" />
+                        {project.lga.lgaName} LGA, {project.lga.state}
+                      </p>
+
+                      {/* Progress bar */}
+                      <div className="mb-3">
+                        <div className="flex justify-between text-[10px] text-slate-400 mb-1">
+                          <span>Progress</span>
+                          <span>{statMeta.progress}%</span>
+                        </div>
+                        <div className="h-1.5 bg-slate-100 rounded-full">
+                          <div
+                            className={`h-full rounded-full transition-all ${
+                              project.status === "COMPLETED" ? "bg-green-500" :
+                              project.status === "IN_PROGRESS" ? "bg-blue-500" : "bg-amber-400"
+                            }`}
+                            style={{ width: `${statMeta.progress}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-slate-700">
+                          {budget || fmtMonth(project.createdAt)}
+                        </span>
+                        <div className="flex items-center gap-3 text-xs text-slate-400">
+                          <span className="flex items-center gap-1">
+                            <Heart className="h-3.5 w-3.5" />
+                            {project._count.reactions}
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <MessageCircle className="h-3.5 w-3.5" />
+                            {project._count.comments}
+                          </span>
+                          <Link
+                            href={project.slug ? `/projects/${project.slug}` : `/projects/${project.id}`}
+                            className="hover:text-green-600 transition-colors"
+                          >
+                            <Share2 className="h-3.5 w-3.5" />
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </motion.div>
+          </AnimatePresence>
+        )}
+
+        {/* Bottom */}
+        {!loading && (
+          <div className="mt-12 flex flex-col items-center gap-3">
+            <Link
+              href="/projects"
+              className="px-7 py-3 rounded-xl bg-green-700 hover:bg-green-800 text-white font-semibold text-sm transition-colors shadow-sm inline-flex items-center gap-2"
+            >
+              Explore All Projects →
+            </Link>
+            {projects.length > 0 && (
+              <p className="text-xs text-slate-400">{projects.length}+ projects tracked on the platform</p>
+            )}
+          </div>
+        )}
       </div>
     </section>
   );
