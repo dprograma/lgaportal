@@ -103,7 +103,7 @@ export default function Transparency() {
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-green-50 border border-green-200 text-green-700 text-xs font-bold uppercase tracking-widest mb-5"
           >
             <Globe className="h-3.5 w-3.5" />
-            Transparency &amp; Open Data
+            Platform Impact
           </motion.div>
           <motion.h2
             initial={{ opacity: 0, y: 16 }}
@@ -112,7 +112,7 @@ export default function Transparency() {
             transition={{ duration: 0.5, delay: 0.1 }}
             className="text-3xl sm:text-4xl font-bold text-slate-900 mb-4 tracking-tight"
           >
-            Platform-Wide Accountability
+            What Good Governance Looks Like
           </motion.h2>
           <motion.p
             initial={{ opacity: 0, y: 16 }}
@@ -121,7 +121,7 @@ export default function Transparency() {
             transition={{ duration: 0.5, delay: 0.2 }}
             className="text-base text-slate-500 max-w-2xl mx-auto leading-relaxed"
           >
-            Aggregated data from all registered LGAs — updated in real time.
+            Real numbers from LGAs using 774ng.com to grow, engage, and attract investment — updated in real time.
           </motion.p>
         </div>
 
