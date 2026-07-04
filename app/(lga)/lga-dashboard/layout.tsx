@@ -1,7 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, TrendingUp, FileText, MessageSquare,
   Settings, LogOut, Shield, Users, Newspaper, UserCog, CalendarClock, CreditCard,
@@ -25,6 +26,25 @@ const navItems = [
 
 export default function LGADashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router   = useRouter();
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const lgaId = sessionStorage.getItem("lgaId");
+    if (!lgaId) {
+      router.replace("/lga-login");
+    } else {
+      setReady(true);
+    }
+  }, [router]);
+
+  if (!ready) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="h-8 w-8 rounded-full border-2 border-green-600 border-t-transparent animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-slate-50">
