@@ -145,11 +145,11 @@ export default function Footer() {
               🛡️
             </div>
             <span className="font-bold text-white text-sm leading-tight">
-              LGA Citizen Portal
+              774ng.com
             </span>
           </Link>
           <p className="text-sm text-slate-400 leading-relaxed mb-5">
-            Nigeria&apos;s open platform for local government transparency and citizen accountability across all 774 LGAs.
+            Nigeria&apos;s open platform for LGA investment, transparency, and citizen accountability across all 774 local governments.
           </p>
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-800 border border-slate-700 text-green-400 text-xs font-semibold mb-5">
             Proudly Nigerian 🇳🇬
@@ -192,10 +192,10 @@ export default function Footer() {
                 <>
                   <li className="pt-3 border-t border-slate-800">
                     <a
-                      href="mailto:support@lgaportal.ng"
+                      href="mailto:support@774ng.com"
                       className="text-sm text-slate-400 hover:text-green-400 transition-colors"
                     >
-                      support@lgaportal.ng
+                      support@774ng.com
                     </a>
                   </li>
                   <li className="text-sm text-slate-500">Abuja FCT, Nigeria</li>
@@ -218,7 +218,7 @@ export default function Footer() {
       <div className="border-t border-slate-800 py-6">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-xs text-slate-500">
-            &copy; 2025 LGA Citizen Portal. All rights reserved. Built in Nigeria 🇳🇬
+            &copy; 2026 774ng.com. All rights reserved. Built in Nigeria 🇳🇬
           </p>
           <div className="flex gap-5">
             {[
