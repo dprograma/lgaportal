@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db as prisma } from "@/lib/db";
-import { getLgaSession } from "@/lib/lga-auth";
+import { requirePublisher } from "@/lib/lga-auth";
 
 export async function PATCH(req: NextRequest) {
-  const lgaSession = await getLgaSession(req);
-  if (!lgaSession) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const lgaSession = await requirePublisher(req);
+  if (lgaSession instanceof NextResponse) return lgaSession;
   const lgaId = lgaSession.lgaId;
 
   const body = await req.json().catch(() => ({}));
@@ -32,8 +32,8 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const lgaSession = await getLgaSession(req);
-  if (!lgaSession) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const lgaSession = await requirePublisher(req);
+  if (lgaSession instanceof NextResponse) return lgaSession;
   const lgaId = lgaSession.lgaId;
 
   const { searchParams } = req.nextUrl;

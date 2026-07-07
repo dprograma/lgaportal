@@ -24,14 +24,28 @@ function secretKey(): Uint8Array {
   return new TextEncoder().encode(secret);
 }
 
+export type LgaRole = "CHAIRMAN" | "STAFF";
+
 export interface LgaSession {
   lgaId: string;
+  /** The supervising chairman's id (the chairman's own id when role is CHAIRMAN). */
   chairmanId: string;
+  role: LgaRole;
+  /** Whether this principal may publish/modify LGA content. Chairmen: always true. */
+  canPublish: boolean;
+  /** Present only for staff sessions. */
+  staffId?: string;
 }
 
-/** Sign a short-lived JWT for an authenticated LGA chairman. */
+/** Sign a short-lived JWT for an authenticated LGA principal (chairman or staff). */
 export async function signLgaSession(session: LgaSession): Promise<string> {
-  return new SignJWT({ lgaId: session.lgaId, chairmanId: session.chairmanId })
+  return new SignJWT({
+    lgaId: session.lgaId,
+    chairmanId: session.chairmanId,
+    role: session.role,
+    canPublish: session.canPublish,
+    ...(session.staffId ? { staffId: session.staffId } : {}),
+  })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${MAX_AGE_SECONDS}s`)
@@ -44,14 +58,49 @@ export async function getLgaSession(req: NextRequest): Promise<LgaSession | null
   if (!token) return null;
   try {
     const { payload } = await jwtVerify(token, secretKey());
-    const { lgaId, chairmanId } = payload as Record<string, unknown>;
-    if (typeof lgaId === "string" && typeof chairmanId === "string") {
-      return { lgaId, chairmanId };
-    }
-    return null;
+    const { lgaId, chairmanId, role, canPublish, staffId } = payload as Record<string, unknown>;
+    if (typeof lgaId !== "string" || typeof chairmanId !== "string") return null;
+    return {
+      lgaId,
+      chairmanId,
+      // Backward-compatible defaults for any pre-existing chairman-only tokens.
+      role: role === "STAFF" ? "STAFF" : "CHAIRMAN",
+      canPublish: typeof canPublish === "boolean" ? canPublish : true,
+      ...(typeof staffId === "string" ? { staffId } : {}),
+    };
   } catch {
     return null;
   }
+}
+
+/**
+ * Require a caller who may publish/modify LGA content (chairman, or staff with
+ * canPublish). Returns the session, or a 401/403 NextResponse to return as-is.
+ */
+export async function requirePublisher(req: NextRequest): Promise<LgaSession | NextResponse> {
+  const session = await getLgaSession(req);
+  if (!session) {
+    return NextResponse.json({ error: "LGA authentication required." }, { status: 401 });
+  }
+  if (!session.canPublish) {
+    return NextResponse.json({ error: "You do not have publishing permission." }, { status: 403 });
+  }
+  return session;
+}
+
+/**
+ * Require the LGA chairman (not a staff member). Returns the session, or a
+ * 401/403 NextResponse to return as-is.
+ */
+export async function requireChairman(req: NextRequest): Promise<LgaSession | NextResponse> {
+  const session = await getLgaSession(req);
+  if (!session) {
+    return NextResponse.json({ error: "LGA authentication required." }, { status: 401 });
+  }
+  if (session.role !== "CHAIRMAN") {
+    return NextResponse.json({ error: "Only the LGA chairman can perform this action." }, { status: 403 });
+  }
+  return session;
 }
 
 /** Attach the signed session cookie to a response (call after OTP success). */

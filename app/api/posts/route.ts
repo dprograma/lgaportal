@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
-import { getLgaSession } from "@/lib/lga-auth";
+import { requirePublisher } from "@/lib/lga-auth";
 
 // GET /api/posts?lgaId=...&limit=10&offset=0
 export async function GET(req: NextRequest) {
@@ -79,10 +79,8 @@ const createSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const lgaSession = await getLgaSession(req);
-  if (!lgaSession) {
-    return NextResponse.json({ error: "LGA authentication required." }, { status: 401 });
-  }
+  const lgaSession = await requirePublisher(req);
+  if (lgaSession instanceof NextResponse) return lgaSession;
 
   let body: unknown;
   try { body = await req.json(); } catch {

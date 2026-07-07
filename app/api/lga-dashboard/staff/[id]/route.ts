@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { getLgaSession } from "@/lib/lga-auth";
-
-async function getLgaId(req: NextRequest): Promise<string | null> {
-  return (await getLgaSession(req))?.lgaId ?? null;
-}
+import { requireChairman } from "@/lib/lga-auth";
 
 const updateSchema = z.object({
   canPublish: z.boolean().optional(),
@@ -14,8 +10,9 @@ const updateSchema = z.object({
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const lgaId = await getLgaId(req);
-  if (!lgaId) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const session = await requireChairman(req);
+  if (session instanceof NextResponse) return session;
+  const lgaId = session.lgaId;
 
   const { id } = await params;
   let body: unknown;
@@ -41,8 +38,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const lgaId = await getLgaId(req);
-  if (!lgaId) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const session = await requireChairman(req);
+  if (session instanceof NextResponse) return session;
+  const lgaId = session.lgaId;
 
   const { id } = await params;
   const staff = await db.lGAStaff.findFirst({ where: { id, lgaId } });

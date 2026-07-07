@@ -84,18 +84,45 @@ export async function POST(request: Request) {
     await db.oTPCode.update({ where: { id: otp.id }, data: { usedAt: new Date() } });
 
     // For an LGA login, this OTP is the second factor — mint the verifiable
-    // session cookie now that identity is confirmed.
+    // session cookie now that identity is confirmed. The principal is either
+    // the LGA chairman or one of their staff members.
     if (purpose === "LGA_LOGIN") {
       const chairman = await db.lGAChairman.findUnique({
         where: { email: sanitizedIdentifier },
         select: { id: true, lgaId: true },
       });
       if (chairman) {
-        const token = await signLgaSession({ lgaId: chairman.lgaId, chairmanId: chairman.id });
+        const token = await signLgaSession({
+          lgaId: chairman.lgaId,
+          chairmanId: chairman.id,
+          role: "CHAIRMAN",
+          canPublish: true,
+        });
         const res = NextResponse.json({
           success: true,
           message: "OTP verified successfully.",
           lgaId: chairman.lgaId,
+        });
+        setLgaSessionCookie(res, token);
+        return res;
+      }
+
+      const staff = await db.lGAStaff.findUnique({
+        where: { email: sanitizedIdentifier },
+        select: { id: true, lgaId: true, chairmanId: true, canPublish: true, isActive: true },
+      });
+      if (staff && staff.isActive) {
+        const token = await signLgaSession({
+          lgaId: staff.lgaId,
+          chairmanId: staff.chairmanId,
+          role: "STAFF",
+          canPublish: staff.canPublish,
+          staffId: staff.id,
+        });
+        const res = NextResponse.json({
+          success: true,
+          message: "OTP verified successfully.",
+          lgaId: staff.lgaId,
         });
         setLgaSessionCookie(res, token);
         return res;
