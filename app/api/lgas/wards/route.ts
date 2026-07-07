@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { requirePublisher } from "@/lib/lga-auth";
 
+// lgaId is never taken from the request — it comes from the verified session.
 const createSchema = z.object({
-  lgaId:           z.string().cuid(),
   wardName:        z.string().min(1, "Ward name is required").max(100),
   wardNumber:      z.number().int().positive().optional(),
   councillorName:  z.string().min(2, "Councillor name is required").max(100),
@@ -36,20 +37,17 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ wards });
 }
 
-// POST /api/lgas/wards  — LGA admin creates a ward
+// POST /api/lgas/wards  — the authenticated LGA creates a ward on its own page
 export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const data = createSchema.parse(body);
+  const session = await requirePublisher(req);
+  if (session instanceof NextResponse) return session;
 
-    const lga = await db.lGA.findUnique({ where: { id: data.lgaId } });
-    if (!lga) {
-      return NextResponse.json({ error: "LGA not found." }, { status: 404 });
-    }
+  try {
+    const data = createSchema.parse(await req.json());
 
     const ward = await db.ward.create({
       data: {
-        lgaId:           data.lgaId,
+        lgaId:           session.lgaId,
         wardName:        data.wardName,
         wardNumber:      data.wardNumber ?? null,
         councillorName:  data.councillorName,
@@ -72,17 +70,20 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PUT /api/lgas/wards  — LGA admin updates a ward
+// PUT /api/lgas/wards  — update one of the LGA's OWN wards
 export async function PUT(req: NextRequest) {
+  const session = await requirePublisher(req);
+  if (session instanceof NextResponse) return session;
+
   try {
-    const body = await req.json();
-    const { id, ...rest } = updateSchema.parse(body);
+    const { id, ...rest } = updateSchema.parse(await req.json());
 
-    const ward = await db.ward.update({
-      where: { id },
-      data: rest,
-    });
+    const existing = await db.ward.findUnique({ where: { id }, select: { lgaId: true } });
+    if (!existing || existing.lgaId !== session.lgaId) {
+      return NextResponse.json({ error: "Ward not found." }, { status: 404 });
+    }
 
+    const ward = await db.ward.update({ where: { id }, data: rest });
     return NextResponse.json({ success: true, ward });
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -93,11 +94,19 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-// DELETE /api/lgas/wards?id=xxx
+// DELETE /api/lgas/wards?id=xxx  — delete one of the LGA's OWN wards
 export async function DELETE(req: NextRequest) {
+  const session = await requirePublisher(req);
+  if (session instanceof NextResponse) return session;
+
   const id = new URL(req.url).searchParams.get("id");
   if (!id) {
     return NextResponse.json({ error: "id is required." }, { status: 400 });
+  }
+
+  const existing = await db.ward.findUnique({ where: { id }, select: { lgaId: true } });
+  if (!existing || existing.lgaId !== session.lgaId) {
+    return NextResponse.json({ error: "Ward not found." }, { status: 404 });
   }
 
   await db.ward.delete({ where: { id } });

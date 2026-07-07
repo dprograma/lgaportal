@@ -110,44 +110,14 @@ test.describe("FR-11-01: LGA Dashboard analytics shape", () => {
     expect(status).toBe(401);
   });
 
-  test("GET /api/lga-dashboard/analytics with real LGA → 200 or 404", async () => {
-    // Grab a real LGA id from the map API
+  test("GET /api/lga-dashboard/analytics with a fake x-lga-id header (no session) → 401", async () => {
+    // The x-lga-id header is no longer a trusted credential — a signed LGA
+    // session cookie is required. (The authenticated analytics shape is covered
+    // by the session-authed suites.)
     const mapRes = await apiGet("/api/map/data?type=lgas");
-    if (mapRes.body.lgas?.length === 0) {
-      console.warn("⚠️  No APPROVED LGAs — skipping analytics shape test");
-      return;
-    }
-    const lgaId = mapRes.body.lgas[0]?.id;
-    if (!lgaId) return;
-
-    const { status, body } = await apiGet("/api/lga-dashboard/analytics", { "x-lga-id": lgaId });
-    expect([200, 404]).toContain(status);
-    if (status !== 200) return;
-
-    // overview shape
-    expect(typeof body.overview.totalPosts).toBe("number");
-    expect(typeof body.overview.publishedPosts).toBe("number");
-    expect(typeof body.overview.draftPosts).toBe("number");
-    expect(typeof body.overview.archivedPosts).toBe("number");
-    expect(typeof body.overview.totalViews).toBe("number");
-    expect(typeof body.overview.totalReactions).toBe("number");
-    expect(typeof body.overview.totalComments).toBe("number");
-    // topPosts
-    expect(Array.isArray(body.topPosts)).toBe(true);
-    // reactionBreakdown
-    expect(Array.isArray(body.reactionBreakdown)).toBe(true);
-    for (const r of body.reactionBreakdown) {
-      expect(typeof r.type).toBe("string");
-      expect(typeof r.count).toBe("number");
-    }
-    // dailyActivity — 30 entries [{date, posts, views}]
-    expect(Array.isArray(body.dailyActivity)).toBe(true);
-    expect(body.dailyActivity.length).toBe(30);
-    for (const d of body.dailyActivity) {
-      expect(typeof d.date).toBe("string");
-      expect(typeof d.posts).toBe("number");
-      expect(typeof d.views).toBe("number");
-    }
+    const lgaId = mapRes.body.lgas?.[0]?.id ?? "00000000-0000-0000-0000-000000000000";
+    const { status } = await apiGet("/api/lga-dashboard/analytics", { "x-lga-id": lgaId });
+    expect(status).toBe(401);
   });
 });
 
