@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
-import { Resend } from "resend";
+import { resend } from "@/lib/resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
 const from   = process.env.RESEND_FROM    || "LGA Portal <noreply@lgaportal.ng>";
 const to     = process.env.CONTACT_EMAIL  || "support@lgaportal.ng";
 

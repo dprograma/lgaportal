@@ -1,37 +1,8 @@
-import { Resend } from "resend";
+import { resend } from "@/lib/resend";
 
-const apiKey      = process.env.RESEND_API_KEY;
 const from        = process.env.RESEND_FROM    || "LGA Portal <noreply@lgaportal.ng>";
 const adminEmail  = process.env.ADMIN_EMAIL    || "admin@774ng.com";
 const appUrl      = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
-
-// The Resend constructor THROWS when no API key is provided. Because this
-// module is imported at the top of every mail-sending route, that throw
-// happens at module-evaluation time and turns the whole route into a 500 —
-// registration, password reset, OTP, and admin notifications all break in any
-// environment where RESEND_API_KEY is unset (local dev, CI, previews).
-//
-// Degrade gracefully instead: build the real client only when a key exists,
-// otherwise fall back to a no-op sender that logs a warning and reports
-// success, so callers proceed as if the email was accepted for delivery.
-type SendResult = { error: { message: string } | null };
-
-interface EmailSender {
-  emails: {
-    send(opts: { from: string; to: string; subject: string; html: string }): Promise<SendResult>;
-  };
-}
-
-const resend: EmailSender = apiKey
-  ? (new Resend(apiKey) as unknown as EmailSender)
-  : {
-      emails: {
-        async send({ to, subject }) {
-          console.warn(`[email] RESEND_API_KEY not set — skipping email "${subject}" to ${to}`);
-          return { error: null };
-        },
-      },
-    };
 
 // ─── Base HTML template ────────────────────────────────────────────────────
 

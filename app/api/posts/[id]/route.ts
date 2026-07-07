@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { getLgaSession } from "@/lib/lga-auth";
+import { requirePublisher } from "@/lib/lga-auth";
 
 // GET /api/posts/[id] — public: look up by id or slug
 export async function GET(
@@ -53,10 +53,8 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const lgaSession = await getLgaSession(req);
-  if (!lgaSession) {
-    return NextResponse.json({ error: "LGA authentication required." }, { status: 401 });
-  }
+  const lgaSession = await requirePublisher(req);
+  if (lgaSession instanceof NextResponse) return lgaSession;
 
   const { id } = await params;
 
@@ -94,10 +92,8 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const lgaSession = await getLgaSession(req);
-  if (!lgaSession) {
-    return NextResponse.json({ error: "LGA authentication required." }, { status: 401 });
-  }
+  const lgaSession = await requirePublisher(req);
+  if (lgaSession instanceof NextResponse) return lgaSession;
 
   const { id } = await params;
 

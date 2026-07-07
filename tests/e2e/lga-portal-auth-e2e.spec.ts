@@ -98,6 +98,29 @@ async function publishPost(ctx: APIRequestContext, title = "Official council upd
   return (await res.json()).post.id;
 }
 
+/** The chairman creates a staff member (delegated publisher). */
+async function createStaff(chairmanCtx: APIRequestContext, canPublish: boolean): Promise<{ email: string; password: string }> {
+  const email = `staff_${uniq()}@example.com`;
+  const password = "Staff@1234";
+  const res = await chairmanCtx.post("/api/lga-dashboard/staff", {
+    data: { name: "Delegate Staff", email, phone: "08012345678", role: "STAFF", canPublish, password },
+  });
+  expect(res.status(), "create staff").toBe(201);
+  return { email, password };
+}
+
+/** Log a staff member in through login → OTP; returns a ctx with the session cookie. */
+async function authedStaff(ip: string, email: string, password: string): Promise<APIRequestContext> {
+  const ctx = await ctxForIp(ip);
+  expect((await ctx.post("/api/lga/login", { data: { email, password } })).status(), "staff login").toBe(200);
+  expect((await ctx.post("/api/otp/send", { data: { identifier: email, purpose: "LGA_LOGIN" } })).status()).toBe(200);
+  const verify = await ctx.post("/api/otp/verify", {
+    data: { identifier: email, code: await otpCode(email, "LGA_LOGIN"), purpose: "LGA_LOGIN" },
+  });
+  expect(verify.status(), "staff OTP verify → session cookie").toBe(200);
+  return ctx;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 test.describe("LGA portal — verifiable session", () => {
@@ -186,5 +209,54 @@ test.describe("LGA portal — cross-LGA post ownership", () => {
   test("the owner can delete its own post → 200", async () => {
     const res = await lgaA.ctx.delete(`/api/posts/${postA}`);
     expect(res.status()).toBe(200);
+  });
+});
+
+test.describe("LGA portal — staff roles (canPublish)", () => {
+  let chairman: { ctx: APIRequestContext; lgaId: string };
+  let publisherCtx: APIRequestContext; // staff with canPublish = true
+  let viewerCtx: APIRequestContext;    // staff with canPublish = false
+
+  test.beforeAll(async () => {
+    chairman = await authedLGA(ipFor(5));
+    const pub = await createStaff(chairman.ctx, true);
+    const viewer = await createStaff(chairman.ctx, false);
+    publisherCtx = await authedStaff(ipFor(6), pub.email, pub.password);
+    viewerCtx = await authedStaff(ipFor(7), viewer.email, viewer.password);
+  });
+
+  test("a staff member with canPublish can publish a post → 201", async () => {
+    const res = await publisherCtx.post("/api/posts", {
+      data: { title: "Staff-published update", content: "Posted by a delegated staff member.", status: "PUBLISHED" },
+    });
+    expect(res.status()).toBe(201);
+    // The post is attributed to the staff member's LGA.
+    expect((await res.json()).post.lgaId).toBe(chairman.lgaId);
+  });
+
+  test("a staff member without canPublish cannot publish → 403", async () => {
+    const res = await viewerCtx.post("/api/posts", {
+      data: { title: "Should be blocked", content: "This staff member cannot publish.", status: "PUBLISHED" },
+    });
+    expect(res.status()).toBe(403);
+  });
+
+  test("any staff member can read the LGA dashboard → 200", async () => {
+    expect((await viewerCtx.get("/api/lga-dashboard/overview")).status()).toBe(200);
+  });
+
+  test("a staff member cannot manage staff (chairman-only) → 403", async () => {
+    const res = await publisherCtx.post("/api/lga-dashboard/staff", {
+      data: { name: "Nope", email: `x_${uniq()}@example.com`, role: "STAFF", canPublish: true, password: "Staff@1234" },
+    });
+    expect(res.status()).toBe(403);
+  });
+
+  test("the chairman can list staff → 200 with the two created members", async () => {
+    const res = await chairman.ctx.get("/api/lga-dashboard/staff");
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(Array.isArray(body.staff)).toBe(true);
+    expect(body.staff.length).toBeGreaterThanOrEqual(2);
   });
 });

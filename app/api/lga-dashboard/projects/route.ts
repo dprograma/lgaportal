@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
-import { getLgaSession } from "@/lib/lga-auth";
+import { getLgaSession, requirePublisher } from "@/lib/lga-auth";
 
 async function getLgaId(req: NextRequest) { return (await getLgaSession(req))?.lgaId ?? null; }
 
@@ -45,8 +45,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const lgaId = await getLgaId(req);
-  if (!lgaId) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const session = await requirePublisher(req);
+  if (session instanceof NextResponse) return session;
+  const lgaId = session.lgaId;
 
   // Verify LGA is approved
   const lga = await db.lGA.findUnique({ where: { id: lgaId }, select: { status: true } });

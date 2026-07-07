@@ -2,11 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { sendAdminReelectionNotification } from "@/lib/email";
-import { getLgaSession } from "@/lib/lga-auth";
-
-async function getLgaId(req: NextRequest): Promise<string | null> {
-  return (await getLgaSession(req))?.lgaId ?? null;
-}
+import { getLgaSession, requireChairman } from "@/lib/lga-auth";
 
 const schema = z.object({
   newEndDate:   z.string().min(1, "New tenure end date is required"),
@@ -19,8 +15,9 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const lgaId = await getLgaId(req);
-  if (!lgaId) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const session = await requireChairman(req);
+  if (session instanceof NextResponse) return session;
+  const lgaId = session.lgaId;
 
   let body: unknown;
   try { body = await req.json(); } catch {
@@ -95,8 +92,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const lgaId = await getLgaId(req);
-  if (!lgaId) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const session = await getLgaSession(req);
+  if (!session) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const lgaId = session.lgaId;
 
   const tenures = await db.lGATenure.findMany({
     where: { lgaId },

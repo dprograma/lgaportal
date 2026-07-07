@@ -4,6 +4,51 @@ import { db } from "@/lib/db";
 import { rateLimit, getClientIP } from "@/lib/rate-limit";
 import { lgaLoginSchema } from "@/lib/validations";
 
+/** Authenticate an LGA staff member (delegated publisher) by email + password. */
+async function tryStaffLogin(email: string, password: string): Promise<NextResponse> {
+  const staff = await db.lGAStaff.findUnique({
+    where: { email },
+    include: { lga: { select: { lgaName: true, state: true, status: true } } },
+  });
+
+  if (!staff || !staff.password) {
+    return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
+  }
+
+  const isMatch = await bcrypt.compare(password, staff.password);
+  if (!isMatch) {
+    return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
+  }
+
+  if (!staff.isActive) {
+    return NextResponse.json({ error: "Your account has been deactivated." }, { status: 403 });
+  }
+
+  if (staff.lga.status === "SUSPENDED") {
+    return NextResponse.json({ error: "SUSPENDED" }, { status: 403 });
+  }
+  if (staff.lga.status === "DEACTIVATED" || staff.lga.status === "REJECTED") {
+    return NextResponse.json(
+      { error: "Your LGA account is no longer active. Please contact support." },
+      { status: 403 }
+    );
+  }
+
+  return NextResponse.json({
+    success: true,
+    staff: {
+      id: staff.id,
+      lgaId: staff.lgaId,
+      lgaName: staff.lga.lgaName,
+      state: staff.lga.state,
+      status: staff.lga.status,
+      name: staff.name,
+      role: "STAFF",
+      canPublish: staff.canPublish,
+    },
+  });
+}
+
 export async function POST(request: Request) {
   // Rate limit: 5 per 15 minutes per IP
   const ip = getClientIP(request);
@@ -48,7 +93,12 @@ export async function POST(request: Request) {
       },
     });
 
-    if (!chairman || !chairman.password) {
+    // Not a chairman — the email may belong to an LGA staff member.
+    if (!chairman) {
+      return await tryStaffLogin(sanitizedEmail, password);
+    }
+
+    if (!chairman.password) {
       return NextResponse.json({ error: "Invalid email or password." }, { status: 401 });
     }
 

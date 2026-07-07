@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { getLgaSession } from "@/lib/lga-auth";
+import { getLgaSession, requirePublisher } from "@/lib/lga-auth";
 
 async function getLgaId(req: NextRequest) { return (await getLgaSession(req))?.lgaId ?? null; }
+async function requirePublisherLgaId(req: NextRequest): Promise<string | NextResponse> {
+  const session = await requirePublisher(req);
+  return session instanceof NextResponse ? session : session.lgaId;
+}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const lgaId = await getLgaId(req);
@@ -19,8 +23,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const lgaId = await getLgaId(req);
-  if (!lgaId) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const lgaId = await requirePublisherLgaId(req);
+  if (lgaId instanceof NextResponse) return lgaId;
   const { id } = await params;
 
   const existing = await db.project.findFirst({ where: { id, lgaId } });
@@ -64,8 +68,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const lgaId = await getLgaId(req);
-  if (!lgaId) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const lgaId = await requirePublisherLgaId(req);
+  if (lgaId instanceof NextResponse) return lgaId;
   const { id } = await params;
 
   const existing = await db.project.findFirst({ where: { id, lgaId } });

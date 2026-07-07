@@ -78,7 +78,7 @@ export default function LGALoginPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ identifier: data.email, purpose: "LGA_LOGIN" }),
       });
-      const lgaId = json.chairman?.lgaId ?? "";
+      const lgaId = json.chairman?.lgaId ?? json.staff?.lgaId ?? "";
       router.push(`/verify-otp?email=${encodeURIComponent(data.email)}&purpose=LGA_LOGIN&next=/lga-dashboard&lgaId=${encodeURIComponent(lgaId)}`);
     } catch {
       toast.error("Something went wrong. Please try again.");
