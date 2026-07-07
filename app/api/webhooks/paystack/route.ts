@@ -2,9 +2,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { verifyWebhookSignature } from "@/lib/paystack";
 import { generateInvoicePDF } from "@/lib/invoice";
-import { Resend } from "resend";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { resend } from "@/lib/resend";
 
 export async function POST(req: NextRequest) {
   const rawBody = await req.text();

@@ -1,9 +1,7 @@
 ﻿import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
-import { Resend } from "resend";
 import { isAdminRequest } from "@/lib/admin-auth";
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+import { resend } from "@/lib/resend";
 
 
 export async function POST(
