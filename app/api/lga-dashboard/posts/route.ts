@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { Prisma, $Enums } from "@prisma/client";
+import { getLgaSession } from "@/lib/lga-auth";
 
 // GET /api/lga-dashboard/posts?status=DRAFT&scheduled=true
 export async function GET(req: NextRequest) {
-  const lgaId = req.headers.get("x-lga-id");
-  if (!lgaId) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const lgaSession = await getLgaSession(req);
+  if (!lgaSession) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const lgaId = lgaSession.lgaId;
 
   const { searchParams } = req.nextUrl;
   const status     = searchParams.get("status") ?? undefined;     // DRAFT | PUBLISHED | ARCHIVED

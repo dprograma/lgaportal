@@ -65,37 +65,22 @@ test.describe("FR-07-01: LGA Dashboard — post list", () => {
     expect(status).toBe(401);
   });
 
-  test("GET /api/lga-dashboard/posts with bad lgaId → 200 with empty list", async () => {
-    const { status, body } = await apiGet("/api/lga-dashboard/posts", LGA_AUTH);
-    expect(status).toBe(200);
-    expect(Array.isArray(body.posts)).toBe(true);
-    expect(typeof body.total).toBe("number");
+  // The x-lga-id header is no longer a trusted credential — LGA routes now
+  // require the signed lga_session cookie. A fake header yields 401.
+  // (The authenticated post-list shape is covered by citizen-lga-e2e.)
+  test("GET /api/lga-dashboard/posts with a fake x-lga-id header (no session) → 401", async () => {
+    const { status } = await apiGet("/api/lga-dashboard/posts", LGA_AUTH);
+    expect(status).toBe(401);
   });
 
-  test("GET /api/lga-dashboard/posts?status=DRAFT → 200", async () => {
-    const { status, body } = await apiGet("/api/lga-dashboard/posts?status=DRAFT", LGA_AUTH);
-    expect(status).toBe(200);
-    expect(Array.isArray(body.posts)).toBe(true);
+  test("GET /api/lga-dashboard/posts?status=DRAFT with a fake header → 401", async () => {
+    const { status } = await apiGet("/api/lga-dashboard/posts?status=DRAFT", LGA_AUTH);
+    expect(status).toBe(401);
   });
 
-  test("GET /api/lga-dashboard/posts?scheduled=true → 200 (scheduled queue)", async () => {
-    const { status, body } = await apiGet("/api/lga-dashboard/posts?scheduled=true", LGA_AUTH);
-    expect(status).toBe(200);
-    expect(Array.isArray(body.posts)).toBe(true);
-  });
-
-  test("Post list items have required fields", async () => {
-    const { status, body } = await apiGet("/api/lga-dashboard/posts", LGA_AUTH);
-    expect(status).toBe(200);
-    if (body.posts.length === 0) return;
-    const p = body.posts[0];
-    expect(typeof p.id).toBe("string");
-    expect(typeof p.title).toBe("string");
-    expect(typeof p.status).toBe("string");
-    expect(typeof p.viewCount).toBe("number");
-    expect(typeof p._count).toBe("object");
-    expect(typeof p._count.reactions).toBe("number");
-    expect(typeof p._count.comments).toBe("number");
+  test("GET /api/lga-dashboard/posts?scheduled=true with a fake header → 401", async () => {
+    const { status } = await apiGet("/api/lga-dashboard/posts?scheduled=true", LGA_AUTH);
+    expect(status).toBe(401);
   });
 });
 
@@ -109,31 +94,14 @@ test.describe("FR-07-02: LGA Dashboard — post schedule", () => {
     expect(res.status()).toBe(401);
   });
 
-  test("PATCH /api/lga-dashboard/posts/schedule — missing postId → 400", async () => {
-    const ctx = await apiRequest.newContext({ baseURL: BASE });
-    const res = await ctx.patch("/api/lga-dashboard/posts/schedule", {
-      data: { scheduledAt: new Date(Date.now() + 86400000).toISOString() },
-      headers: { "Content-Type": "application/json", ...LGA_AUTH },
-    });
-    expect([400]).toContain(res.status());
-  });
-
-  test("PATCH /api/lga-dashboard/posts/schedule — past date → 400", async () => {
-    const ctx = await apiRequest.newContext({ baseURL: BASE });
-    const res = await ctx.patch("/api/lga-dashboard/posts/schedule", {
-      data: { postId: FAKE_UUID, scheduledAt: new Date(Date.now() - 86400000).toISOString() },
-      headers: { "Content-Type": "application/json", ...LGA_AUTH },
-    });
-    expect([400]).toContain(res.status());
-  });
-
-  test("PATCH /api/lga-dashboard/posts/schedule — nonexistent post → 404", async () => {
+  // A fake x-lga-id header no longer authenticates → 401 before any validation.
+  test("PATCH /api/lga-dashboard/posts/schedule with a fake header → 401", async () => {
     const ctx = await apiRequest.newContext({ baseURL: BASE });
     const res = await ctx.patch("/api/lga-dashboard/posts/schedule", {
       data: { postId: FAKE_UUID, scheduledAt: new Date(Date.now() + 86400000).toISOString() },
       headers: { "Content-Type": "application/json", ...LGA_AUTH },
     });
-    expect([404, 400]).toContain(res.status());
+    expect(res.status()).toBe(401);
   });
 
   test("DELETE /api/lga-dashboard/posts/schedule without auth → 401", async () => {
@@ -142,12 +110,12 @@ test.describe("FR-07-02: LGA Dashboard — post schedule", () => {
     expect(res.status()).toBe(401);
   });
 
-  test("DELETE /api/lga-dashboard/posts/schedule — missing postId → 400", async () => {
+  test("DELETE /api/lga-dashboard/posts/schedule with a fake header → 401", async () => {
     const ctx = await apiRequest.newContext({ baseURL: BASE });
     const res = await ctx.delete("/api/lga-dashboard/posts/schedule", {
       headers: LGA_AUTH,
     });
-    expect([400]).toContain(res.status());
+    expect(res.status()).toBe(401);
   });
 });
 

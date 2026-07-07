@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
-import { auth } from "@/auth";
+import { getLgaSession } from "@/lib/lga-auth";
 
 // GET /api/posts/[id] — public: look up by id or slug
 export async function GET(
@@ -53,9 +53,9 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  const lgaSession = await getLgaSession(req);
+  if (!lgaSession) {
+    return NextResponse.json({ error: "LGA authentication required." }, { status: 401 });
   }
 
   const { id } = await params;
@@ -68,6 +68,12 @@ export async function PUT(
   const result = updateSchema.safeParse(body);
   if (!result.success) {
     return NextResponse.json({ error: result.error.issues[0].message }, { status: 422 });
+  }
+
+  // Only the owning LGA may edit its post.
+  const existing = await db.post.findUnique({ where: { id }, select: { lgaId: true } });
+  if (!existing || existing.lgaId !== lgaSession.lgaId) {
+    return NextResponse.json({ error: "Post not found." }, { status: 404 });
   }
 
   const post = await db.post.update({
@@ -88,12 +94,19 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  const lgaSession = await getLgaSession(req);
+  if (!lgaSession) {
+    return NextResponse.json({ error: "LGA authentication required." }, { status: 401 });
   }
 
   const { id } = await params;
+
+  // Only the owning LGA may delete its post.
+  const existing = await db.post.findUnique({ where: { id }, select: { lgaId: true } });
+  if (!existing || existing.lgaId !== lgaSession.lgaId) {
+    return NextResponse.json({ error: "Post not found." }, { status: 404 });
+  }
+
   await db.post.delete({ where: { id } });
   return NextResponse.json({ success: true });
 }

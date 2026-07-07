@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { getLgaSession } from "@/lib/lga-auth";
 
-function getLgaId(req: NextRequest) { return req.headers.get("x-lga-id"); }
+async function getLgaId(req: NextRequest) { return (await getLgaSession(req))?.lgaId ?? null; }
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const lgaId = getLgaId(req);
+  const lgaId = await getLgaId(req);
   if (!lgaId) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   const { id } = await params;
 
@@ -18,7 +19,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const lgaId = getLgaId(req);
+  const lgaId = await getLgaId(req);
   if (!lgaId) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   const { id } = await params;
 
@@ -63,7 +64,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const lgaId = getLgaId(req);
+  const lgaId = await getLgaId(req);
   if (!lgaId) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
   const { id } = await params;
 

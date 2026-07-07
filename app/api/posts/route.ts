@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
+import { getLgaSession } from "@/lib/lga-auth";
 
 // GET /api/posts?lgaId=...&limit=10&offset=0
 export async function GET(req: NextRequest) {
@@ -67,9 +68,10 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ posts: result, total });
 }
 
-// POST /api/posts  — LGA dashboard creates a post
+// POST /api/posts  — the authenticated LGA publishes a post under its OWN lgaId.
+// lgaId is taken from the verified session cookie, never from the request body,
+// so an LGA can only ever publish to its own page.
 const createSchema = z.object({
-  lgaId:    z.string().min(1),
   title:    z.string().min(3, "Title must be at least 3 characters").max(120),
   content:  z.string().min(10, "Content must be at least 10 characters"),
   imageUrl: z.string().url().optional().or(z.literal("")),
@@ -77,9 +79,9 @@ const createSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Authentication required." }, { status: 401 });
+  const lgaSession = await getLgaSession(req);
+  if (!lgaSession) {
+    return NextResponse.json({ error: "LGA authentication required." }, { status: 401 });
   }
 
   let body: unknown;
@@ -92,11 +94,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: result.error.issues[0].message }, { status: 422 });
   }
 
-  const { lgaId, title, content, imageUrl, status } = result.data;
+  const { title, content, imageUrl, status } = result.data;
 
   const post = await db.post.create({
     data: {
-      lgaId,
+      lgaId:    lgaSession.lgaId,
       title:    title.trim(),
       content:  content.trim(),
       imageUrl: imageUrl || null,

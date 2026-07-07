@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
+import { getLgaSession } from "@/lib/lga-auth";
 
-// Simple LGA session check via x-lga-id header (set by client from session storage)
-function getLgaId(req: NextRequest): string | null {
-  return req.headers.get("x-lga-id");
+// LGA session check via the signed, HttpOnly session cookie (minted after OTP).
+async function getLgaId(req: NextRequest): Promise<string | null> {
+  return (await getLgaSession(req))?.lgaId ?? null;
 }
 
 const createSchema = z.object({
@@ -18,7 +19,7 @@ const createSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const lgaId = getLgaId(req);
+  const lgaId = await getLgaId(req);
   if (!lgaId) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   const staff = await db.lGAStaff.findMany({
@@ -34,7 +35,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const lgaId = getLgaId(req);
+  const lgaId = await getLgaId(req);
   if (!lgaId) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   let body: unknown;

@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { getLgaSession } from "@/lib/lga-auth";
 
-function getLgaId(req: NextRequest): string | null {
-  return req.headers.get("x-lga-id");
+async function getLgaId(req: NextRequest): Promise<string | null> {
+  return (await getLgaSession(req))?.lgaId ?? null;
 }
 
 const updateSchema = z.object({
@@ -13,7 +14,7 @@ const updateSchema = z.object({
 });
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const lgaId = getLgaId(req);
+  const lgaId = await getLgaId(req);
   if (!lgaId) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   const { id } = await params;
@@ -40,7 +41,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const lgaId = getLgaId(req);
+  const lgaId = await getLgaId(req);
   if (!lgaId) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   const { id } = await params;

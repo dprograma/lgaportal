@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { rateLimit, getClientIP } from "@/lib/rate-limit";
 import { otpVerifySchema } from "@/lib/validations";
+import { signLgaSession, setLgaSessionCookie } from "@/lib/lga-auth";
 
 export async function POST(request: Request) {
   const ip = getClientIP(request);
@@ -81,6 +82,25 @@ export async function POST(request: Request) {
 
     // Mark OTP as used
     await db.oTPCode.update({ where: { id: otp.id }, data: { usedAt: new Date() } });
+
+    // For an LGA login, this OTP is the second factor — mint the verifiable
+    // session cookie now that identity is confirmed.
+    if (purpose === "LGA_LOGIN") {
+      const chairman = await db.lGAChairman.findUnique({
+        where: { email: sanitizedIdentifier },
+        select: { id: true, lgaId: true },
+      });
+      if (chairman) {
+        const token = await signLgaSession({ lgaId: chairman.lgaId, chairmanId: chairman.id });
+        const res = NextResponse.json({
+          success: true,
+          message: "OTP verified successfully.",
+          lgaId: chairman.lgaId,
+        });
+        setLgaSessionCookie(res, token);
+        return res;
+      }
+    }
 
     return NextResponse.json({ success: true, message: "OTP verified successfully." });
   } catch (error) {
