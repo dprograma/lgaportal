@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { getLgaSession } from "@/lib/lga-auth";
 
 export async function GET(req: NextRequest) {
-  const lgaId = req.headers.get("x-lga-id");
-  if (!lgaId) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const lgaSession = await getLgaSession(req);
+  if (!lgaSession) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const lgaId = lgaSession.lgaId;
 
   const lga = await db.lGA.findUnique({
     where: { id: lgaId },

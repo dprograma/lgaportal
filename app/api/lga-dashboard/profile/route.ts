@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import bcrypt from "bcryptjs";
+import { getLgaSession } from "@/lib/lga-auth";
 
 const updateSchema = z.object({
   phone:         z.string().min(7).max(20).optional(),
@@ -18,8 +19,9 @@ const passwordSchema = z.object({
 
 // GET /api/lga-dashboard/profile — full LGA profile for settings page
 export async function GET(req: NextRequest) {
-  const lgaId = req.headers.get("x-lga-id");
-  if (!lgaId) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const lgaSession = await getLgaSession(req);
+  if (!lgaSession) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const lgaId = lgaSession.lgaId;
 
   const lga = await db.lGA.findUnique({
     where: { id: lgaId },
@@ -37,8 +39,9 @@ export async function GET(req: NextRequest) {
 
 // PATCH /api/lga-dashboard/profile — update LGA info or change password
 export async function PATCH(req: NextRequest) {
-  const lgaId = req.headers.get("x-lga-id");
-  if (!lgaId) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const lgaSession = await getLgaSession(req);
+  if (!lgaSession) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
+  const lgaId = lgaSession.lgaId;
 
   let body: unknown;
   try { body = await req.json(); } catch {

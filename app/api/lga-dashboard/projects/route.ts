@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { z } from "zod";
+import { getLgaSession } from "@/lib/lga-auth";
 
-function getLgaId(req: NextRequest) { return req.headers.get("x-lga-id"); }
+async function getLgaId(req: NextRequest) { return (await getLgaSession(req))?.lgaId ?? null; }
 
 const schema = z.object({
   title:           z.string().min(3, "Title too short").max(150),
@@ -20,7 +21,7 @@ const schema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const lgaId = getLgaId(req);
+  const lgaId = await getLgaId(req);
   if (!lgaId) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
@@ -44,7 +45,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const lgaId = getLgaId(req);
+  const lgaId = await getLgaId(req);
   if (!lgaId) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   // Verify LGA is approved

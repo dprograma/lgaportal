@@ -529,11 +529,11 @@ test.describe("FR-14-03: LGA Dashboard — press releases", () => {
     expect(status).toBe(401);
   });
 
-  test("GET /api/lga-dashboard/press-releases with bad lgaId → 200 with empty list", async () => {
-    const { status, body } = await apiGet("/api/lga-dashboard/press-releases", LGA_AUTH);
-    if (skipIf500(status, "lga-dashboard/press-releases")) return;
-    expect(status).toBe(200);
-    expect(Array.isArray(body.releases)).toBe(true);
+  test("GET /api/lga-dashboard/press-releases with a fake header (no session) → 401", async () => {
+    // The x-lga-id header is no longer a trusted credential — a signed session
+    // cookie is required, so a fake header is rejected.
+    const { status } = await apiGet("/api/lga-dashboard/press-releases", LGA_AUTH);
+    expect(status).toBe(401);
   });
 
   test("POST /api/lga-dashboard/press-releases without auth → 401", async () => {
@@ -548,8 +548,8 @@ test.describe("FR-14-03: LGA Dashboard — press releases", () => {
     const { status, body } = await apiPost("/api/lga-dashboard/press-releases",
       { title: "Only Title" }, LGA_AUTH);
     if (skipIf500(status, "POST lga-dashboard/press-releases")) return;
-    // 400 for missing body, or 404 because LGA not found — either is correct
-    expect([400, 404]).toContain(status);
+    // 401 now: the fake header does not authenticate (session cookie required).
+    expect([400, 401, 404]).toContain(status);
     expect(typeof body.error).toBe("string");
   });
 
@@ -559,7 +559,7 @@ test.describe("FR-14-03: LGA Dashboard — press releases", () => {
       body: "Content of press release that is long enough",
     }, LGA_AUTH);
     if (skipIf500(status, "POST lga-dashboard/press-releases")) return;
-    expect([404]).toContain(status);
+    expect([401, 404]).toContain(status);
   });
 });
 

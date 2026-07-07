@@ -65,6 +65,17 @@ async function chairmanToken(email: string): Promise<string> {
   return rows[0]?.token ?? "";
 }
 
+/** Read the latest unused OTP code for an identifier (simulates the emailed code). */
+async function otpCode(identifier: string, purpose: string): Promise<string> {
+  const { rows } = await pool.query(
+    `SELECT code FROM otp_codes
+      WHERE identifier = $1 AND purpose = $2 AND "usedAt" IS NULL
+      ORDER BY "createdAt" DESC LIMIT 1`,
+    [identifier.toLowerCase(), purpose]
+  );
+  return rows[0]?.code ?? "";
+}
+
 async function ctxForIp(ip: string): Promise<APIRequestContext> {
   return apiRequest.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": ip } });
 }
@@ -97,8 +108,12 @@ async function authedCitizen(ip: string): Promise<{ ctx: APIRequestContext; emai
   return { ctx, email, id: session.user.id };
 }
 
-/** Register + verify an LGA chairman; returns the LGA identity. */
-async function registerVerifiedLGA(ip: string): Promise<{ lgaId: string; lgaName: string; email: string }> {
+/**
+ * Register + verify an LGA chairman, then complete the login → OTP handshake so
+ * the returned context carries the verifiable `lga_session` cookie. That cookie
+ * is what authorizes the LGA to publish and to read its dashboard.
+ */
+async function authedLGA(ip: string): Promise<{ ctx: APIRequestContext; lgaId: string; email: string }> {
   const suffix = uniq();
   const email = `chairman_${suffix}@example.com`;
   const lgaName = `Interactville ${suffix}`;
@@ -117,14 +132,24 @@ async function registerVerifiedLGA(ip: string): Promise<{ lgaId: string; lgaName
   const ver = await ctx.post("/api/lga/verify", { data: { token: await chairmanToken(email) } });
   expect(ver.status(), "LGA email verification").toBe(200);
 
-  return { lgaId, lgaName, email };
+  const login = await ctx.post("/api/lga/login", { data: { email, password: PASSWORD } });
+  expect(login.status(), "LGA login").toBe(200);
+
+  const send = await ctx.post("/api/otp/send", { data: { identifier: email, purpose: "LGA_LOGIN" } });
+  expect(send.status(), "OTP send").toBe(200);
+
+  const verify = await ctx.post("/api/otp/verify", {
+    data: { identifier: email, code: await otpCode(email, "LGA_LOGIN"), purpose: "LGA_LOGIN" },
+  });
+  expect(verify.status(), "OTP verify → session cookie").toBe(200);
+
+  return { ctx, lgaId, email };
 }
 
-/** Publish a PUBLISHED post under an LGA using an authenticated context. */
-async function publishPost(ctx: APIRequestContext, lgaId: string): Promise<string> {
+/** Publish a PUBLISHED post as the authenticated LGA (lgaId is pinned server-side). */
+async function publishPost(ctx: APIRequestContext): Promise<string> {
   const res = await ctx.post("/api/posts", {
     data: {
-      lgaId,
       title: "Ward 3 road project completed",
       content: "The council has completed the new access road serving ward 3 markets.",
       status: "PUBLISHED",
@@ -139,14 +164,14 @@ async function publishPost(ctx: APIRequestContext, lgaId: string): Promise<strin
 test.describe("Citizen ↔ LGA portal — engagement", () => {
   let lgaId: string;
   let postId: string;
+  let lgaCtx: APIRequestContext;
   let citizen: { ctx: APIRequestContext; email: string; id: string };
 
   test.beforeAll(async () => {
-    const lga = await registerVerifiedLGA(ipFor(1));
+    const lga = await authedLGA(ipFor(1)); // the chairman's portal, with a real session
     lgaId = lga.lgaId;
-
-    const publisher = await authedCitizen(ipFor(2)); // the portal author
-    postId = await publishPost(publisher.ctx, lgaId);
+    lgaCtx = lga.ctx;
+    postId = await publishPost(lga.ctx);   // lgaId is pinned from the session cookie
 
     citizen = await authedCitizen(ipFor(3)); // the engaging citizen
   });
@@ -299,8 +324,8 @@ test.describe("Citizen ↔ LGA portal — engagement", () => {
 
   // ── Loop closure: the chairman's dashboard sees the engagement ───────────
   test("the chairman dashboard reflects the citizen's reaction and comment", async () => {
-    const ctx = await apiRequest.newContext({ baseURL: BASE });
-    const res = await ctx.get("/api/lga-dashboard/posts", { headers: { "x-lga-id": lgaId } });
+    // The authenticated LGA context carries the signed session cookie.
+    const res = await lgaCtx.get("/api/lga-dashboard/posts");
     expect(res.status()).toBe(200);
     const body = await res.json();
     const mine = body.posts.find((p: { id: string }) => p.id === postId);
@@ -309,7 +334,7 @@ test.describe("Citizen ↔ LGA portal — engagement", () => {
     expect(mine._count.comments).toBeGreaterThanOrEqual(1);
   });
 
-  test("the dashboard rejects requests without the LGA identity → 401", async () => {
+  test("the dashboard rejects a request with no LGA session → 401", async () => {
     const ctx = await apiRequest.newContext({ baseURL: BASE });
     const res = await ctx.get("/api/lga-dashboard/posts");
     expect(res.status()).toBe(401);

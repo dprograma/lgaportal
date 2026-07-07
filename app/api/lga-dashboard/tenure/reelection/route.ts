@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { sendAdminReelectionNotification } from "@/lib/email";
+import { getLgaSession } from "@/lib/lga-auth";
 
-function getLgaId(req: NextRequest): string | null {
-  return req.headers.get("x-lga-id");
+async function getLgaId(req: NextRequest): Promise<string | null> {
+  return (await getLgaSession(req))?.lgaId ?? null;
 }
 
 const schema = z.object({
@@ -18,7 +19,7 @@ const schema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const lgaId = getLgaId(req);
+  const lgaId = await getLgaId(req);
   if (!lgaId) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   let body: unknown;
@@ -94,7 +95,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-  const lgaId = getLgaId(req);
+  const lgaId = await getLgaId(req);
   if (!lgaId) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   const tenures = await db.lGATenure.findMany({

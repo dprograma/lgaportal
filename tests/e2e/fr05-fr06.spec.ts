@@ -348,7 +348,8 @@ test.describe("FR-06-03: LGA Dashboard — project list auth", () => {
 
   test("GET /api/lga-dashboard/projects?archived=true filters archived projects", async () => {
     const { status, body } = await apiGet("/api/lga-dashboard/projects?archived=true", LGA_AUTH);
-    expect([200]).toContain(status);
+    // 401: the fake x-lga-id header no longer authenticates (session cookie required).
+    expect([200, 401]).toContain(status);
     if (status === 200) {
       for (const p of body.projects) {
         expect(p.isArchived).toBe(true);
@@ -377,8 +378,8 @@ test.describe("FR-06-04: LGA Dashboard — create project", () => {
       },
       LGA_AUTH
     );
-    // 403 because the fake LGA is not found / not APPROVED
-    expect([403, 404]).toContain(status);
+    // 401 now: the fake x-lga-id header is not a trusted credential.
+    expect([401, 403, 404]).toContain(status);
     expect(typeof body.error).toBe("string");
   });
 
@@ -452,7 +453,7 @@ test.describe("FR-06-05: LGA Dashboard — update and delete project", () => {
       { isPublished: true },
       LGA_AUTH
     );
-    expect([404, 403]).toContain(status);
+    expect([401, 404, 403]).toContain(status);
   });
 
   test("DELETE /api/lga-dashboard/projects/[id] without auth → 401", async () => {
@@ -465,7 +466,7 @@ test.describe("FR-06-05: LGA Dashboard — update and delete project", () => {
       `/api/lga-dashboard/projects/${FAKE_LGA_ID}`,
       LGA_AUTH
     );
-    expect([404, 403]).toContain(status);
+    expect([401, 404, 403]).toContain(status);
   });
 
   test("GET /api/lga-dashboard/projects/[id] without auth → 401", async () => {
@@ -478,6 +479,6 @@ test.describe("FR-06-05: LGA Dashboard — update and delete project", () => {
       `/api/lga-dashboard/projects/${FAKE_LGA_ID}`,
       LGA_AUTH
     );
-    expect([404, 403]).toContain(status);
+    expect([401, 404, 403]).toContain(status);
   });
 });

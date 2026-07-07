@@ -38,6 +38,17 @@ export default function LGADashboardLayout({ children }: { children: React.React
     }
   }, [router]);
 
+  async function handleSignOut() {
+    try {
+      await fetch("/api/lga/logout", { method: "POST" });
+    } catch {
+      /* clear client state regardless */
+    }
+    sessionStorage.removeItem("lgaId");
+    localStorage.removeItem("lgaId");
+    router.replace("/lga-login");
+  }
+
   if (!ready) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center">
@@ -84,13 +95,14 @@ export default function LGADashboardLayout({ children }: { children: React.React
 
         {/* Sign out */}
         <div className="px-3 pb-4">
-          <Link
-            href="/lga-login"
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all"
+          <button
+            type="button"
+            onClick={handleSignOut}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all"
           >
             <LogOut className="h-4 w-4 shrink-0" />
             Sign Out
-          </Link>
+          </button>
         </div>
       </aside>
 
