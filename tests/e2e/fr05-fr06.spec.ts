@@ -216,7 +216,8 @@ test.describe("FR-06-01: Public projects list", () => {
     expect(typeof p.description).toBe("string");
     expect(typeof p.category).toBe("string");
     expect(typeof p.status).toBe("string");
-    expect(typeof p.isPublished).toBe("boolean");
+    // Note: the public /api/projects projection intentionally omits isPublished
+    // (only published projects are listed), so it is not asserted here.
     // budget is BigInt serialized as string (or null)
     expect(p.budget === null || typeof p.budget === "string").toBe(true);
   });

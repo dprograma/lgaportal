@@ -16,7 +16,7 @@ export default defineConfig({
     // Run with: npx playwright test --project=api
     {
       name: "api",
-      testMatch: /(?:fr\d+-?(?:fr\d+)?|admin-auth|auth-e2e|citizen-lga-e2e|lga-portal-auth-e2e|investor-lga-e2e|landing-reframe)\.spec\.ts$/,
+      testMatch: /(?:fr\d+-?(?:fr\d+)?|admin-auth|auth-e2e|citizen-lga-e2e|lga-portal-auth-e2e|investor-lga-e2e|chairman-crud-e2e|landing-reframe)\.spec\.ts$/,
       use: {},
     },
     // Browser tests — requires: npx playwright install chromium
