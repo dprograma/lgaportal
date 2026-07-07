@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { sendInquiryNotificationToLGA } from "@/lib/email";
+import { getLgaSession } from "@/lib/lga-auth";
 
 const schema = z.object({
   investorId:  z.string().cuid(),
@@ -55,13 +56,15 @@ export async function POST(req: NextRequest) {
   }
 }
 
+// GET /api/investors/inquiries — the authenticated LGA reads its OWN inquiries.
+// Inquiries contain investor PII, so the lgaId comes from the verified session,
+// never from the query string.
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const lgaId = searchParams.get("lgaId");
-  if (!lgaId) return NextResponse.json({ error: "lgaId is required." }, { status: 400 });
+  const session = await getLgaSession(req);
+  if (!session) return NextResponse.json({ error: "LGA authentication required." }, { status: 401 });
 
   const inquiries = await db.investorInquiry.findMany({
-    where: { lgaId },
+    where: { lgaId: session.lgaId },
     include: { investor: true, endowment: true },
     orderBy: { createdAt: "desc" },
   });
