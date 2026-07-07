@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { requirePublisher } from "@/lib/lga-auth";
 
 const ResourceCategories = [
   "AGRICULTURE","MINERALS","LIVESTOCK","FISHERIES","FORESTRY","ENERGY","TOURISM","MANUFACTURING",
 ] as const;
 
+// lgaId is never taken from the request — it comes from the verified session.
 const createSchema = z.object({
-  lgaId:          z.string().cuid(),
   category:       z.enum(ResourceCategories),
   title:          z.string().min(3).max(120),
   description:    z.string().min(10).max(2000),
@@ -20,7 +21,7 @@ const createSchema = z.object({
 
 const updateSchema = createSchema.partial().extend({ id: z.string().cuid() });
 
-// GET  /api/lgas/endowments?lgaId=xxx   – public listing
+// GET  /api/lgas/endowments?lgaId=xxx   – public listing of published endowments
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const lgaId = searchParams.get("lgaId");
@@ -39,18 +40,17 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ endowments });
 }
 
-// POST /api/lgas/endowments  – LGA admin creates an endowment
+// POST /api/lgas/endowments  – the authenticated LGA creates an endowment on its own page
 export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const data = createSchema.parse(body);
+  const session = await requirePublisher(req);
+  if (session instanceof NextResponse) return session;
 
-    const lga = await db.lGA.findUnique({ where: { id: data.lgaId } });
-    if (!lga) return NextResponse.json({ error: "LGA not found." }, { status: 404 });
+  try {
+    const data = createSchema.parse(await req.json());
 
     const endowment = await db.lGAEndowment.create({
       data: {
-        lgaId:          data.lgaId,
+        lgaId:          session.lgaId,
         category:       data.category,
         title:          data.title,
         description:    data.description,
@@ -72,17 +72,20 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// PUT /api/lgas/endowments  – LGA admin updates an endowment
+// PUT /api/lgas/endowments  – update one of the LGA's OWN endowments
 export async function PUT(req: NextRequest) {
+  const session = await requirePublisher(req);
+  if (session instanceof NextResponse) return session;
+
   try {
-    const body = await req.json();
-    const { id, ...rest } = updateSchema.parse(body);
+    const { id, ...rest } = updateSchema.parse(await req.json());
 
-    const endowment = await db.lGAEndowment.update({
-      where: { id },
-      data: rest,
-    });
+    const existing = await db.lGAEndowment.findUnique({ where: { id }, select: { lgaId: true } });
+    if (!existing || existing.lgaId !== session.lgaId) {
+      return NextResponse.json({ error: "Endowment not found." }, { status: 404 });
+    }
 
+    const endowment = await db.lGAEndowment.update({ where: { id }, data: rest });
     return NextResponse.json({ success: true, endowment });
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -92,10 +95,18 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-// DELETE /api/lgas/endowments?id=xxx
+// DELETE /api/lgas/endowments?id=xxx  – delete one of the LGA's OWN endowments
 export async function DELETE(req: NextRequest) {
+  const session = await requirePublisher(req);
+  if (session instanceof NextResponse) return session;
+
   const id = new URL(req.url).searchParams.get("id");
   if (!id) return NextResponse.json({ error: "id is required." }, { status: 400 });
+
+  const existing = await db.lGAEndowment.findUnique({ where: { id }, select: { lgaId: true } });
+  if (!existing || existing.lgaId !== session.lgaId) {
+    return NextResponse.json({ error: "Endowment not found." }, { status: 404 });
+  }
 
   await db.lGAEndowment.delete({ where: { id } });
   return NextResponse.json({ success: true });
