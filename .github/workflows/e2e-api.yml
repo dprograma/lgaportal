@@ -1,4 +1,4 @@
-name: E2E API tests
+name: E2E tests
 
 on:
   pull_request:
@@ -7,7 +7,7 @@ on:
 
 # Cancel superseded runs on the same ref.
 concurrency:
-  group: e2e-api-${{ github.ref }}
+  group: e2e-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -93,7 +93,87 @@ jobs:
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-test-results
+          name: playwright-api-test-results
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  e2e-browser:
+    name: Playwright browser journeys
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lgaportal
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lgaportal?schema=public
+      AUTH_SECRET: ci-e2e-auth-secret-0123456789abcdef0123456789abcdef
+      AUTH_URL: http://localhost:3000
+      NEXTAUTH_URL: http://localhost:3000
+      AUTH_TRUST_HOST: "true"
+      ADMIN_SECRET: 4a0423d4888f73e76fbbb5655ac5458c09be34d5d4eaa9522f943b9cc3d80666
+      ADMIN_PASSWORD: Admin@Test123
+      NEXT_PUBLIC_ADMIN_SECRET: 4a0423d4888f73e76fbbb5655ac5458c09be34d5d4eaa9522f943b9cc3d80666
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+      PAYSTACK_SECRET_KEY: sk_test_ci_dummy_0123456789
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Write .env.local
+        run: |
+          cat > .env.local <<EOF
+          DATABASE_URL=${DATABASE_URL}
+          AUTH_SECRET=${AUTH_SECRET}
+          AUTH_URL=${AUTH_URL}
+          NEXTAUTH_URL=${NEXTAUTH_URL}
+          AUTH_TRUST_HOST=${AUTH_TRUST_HOST}
+          ADMIN_SECRET=${ADMIN_SECRET}
+          ADMIN_PASSWORD=${ADMIN_PASSWORD}
+          NEXT_PUBLIC_ADMIN_SECRET=${NEXT_PUBLIC_ADMIN_SECRET}
+          NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+          PAYSTACK_SECRET_KEY=${PAYSTACK_SECRET_KEY}
+          EOF
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+
+      # The chromium project drives real pages, so download the browser.
+      # (PW_CHROMIUM_PATH is left unset, so Playwright uses this install.)
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser journeys
+        run: npx playwright test --project=chromium
+
+      - name: Upload failure artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-browser-test-results
           path: test-results/
           retention-days: 7
           if-no-files-found: ignore

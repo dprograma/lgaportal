@@ -16,28 +16,23 @@ test.describe("FR-01-01: Signup page UI", () => {
 
   test("submitting valid data redirects to verify-email", async ({ page }) => {
     const email = `e2e+${Date.now()}@mailinator.com`;
-    await page.goto("/signup");
+    await page.goto("/signup", { waitUntil: "domcontentloaded" });
 
+    // state/terms wrap native <select>/<input> in styled markup, so drive them
+    // directly (force) rather than relying on visibility.
     await page.fill("input[name='name']", "E2E Test User");
     await page.fill("input[name='email']", email);
-
-    const phoneInput = page.locator("input[name='phone']");
-    if (await phoneInput.isVisible()) await phoneInput.fill("08012345678");
-
-    const stateSelect = page.locator("select[name='state']");
-    if (await stateSelect.isVisible()) await stateSelect.selectOption({ label: "Lagos" });
-
-    const lgaInput = page.locator("input[name='lga']");
-    if (await lgaInput.isVisible()) await lgaInput.fill("Ikeja");
-
+    await page.fill("input[name='phone']", "08012345678");
+    await page.selectOption("select[name='state']", { label: "Lagos" });
+    await page.fill("input[name='lga']", "Ikeja");
     await page.fill("input[name='password']", "Secure@123");
     await page.fill("input[name='confirmPassword']", "Secure@123");
-
-    const termsCheckbox = page.locator("input[name='terms']");
-    if (await termsCheckbox.isVisible()) await termsCheckbox.check();
+    // The terms checkbox has a JSX label (no name/id); click its label text,
+    // which wraps and toggles the underlying checkbox.
+    await page.getByText(/I have read and agree/i).click();
 
     await page.click("button[type='submit']");
-    await expect(page).toHaveURL(/verify-email/, { timeout: 10_000 });
+    await expect(page).toHaveURL(/verify-email/, { timeout: 15_000 });
   });
 });
 
