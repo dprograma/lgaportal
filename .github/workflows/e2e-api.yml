@@ -44,6 +44,9 @@ jobs:
       ADMIN_PASSWORD: Admin@Test123
       NEXT_PUBLIC_ADMIN_SECRET: 4a0423d4888f73e76fbbb5655ac5458c09be34d5d4eaa9522f943b9cc3d80666
       NEXT_PUBLIC_APP_URL: http://localhost:3000
+      # Test-only key so the Paystack webhook's HMAC signature verification can
+      # be exercised (sandbox-only — no live Paystack calls are made).
+      PAYSTACK_SECRET_KEY: sk_test_ci_dummy_0123456789
 
     steps:
       - uses: actions/checkout@v4
@@ -70,6 +73,7 @@ jobs:
           ADMIN_PASSWORD=${ADMIN_PASSWORD}
           NEXT_PUBLIC_ADMIN_SECRET=${NEXT_PUBLIC_ADMIN_SECRET}
           NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+          PAYSTACK_SECRET_KEY=${PAYSTACK_SECRET_KEY}
           EOF
 
       - name: Generate Prisma client
