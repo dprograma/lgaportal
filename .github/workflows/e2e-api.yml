@@ -1,0 +1,95 @@
+name: E2E API tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Cancel superseded runs on the same ref.
+concurrency:
+  group: e2e-api-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e-api:
+    name: Playwright API integration suite
+    runs-on: ubuntu-latest
+
+    # Real Postgres for the integration tests (same as local dev).
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: lgaportal
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # Test-only values — mirror the local .env.local used to develop the suite.
+      # RESEND_API_KEY is intentionally unset: mail-sending code degrades to a
+      # no-op (lib/resend.ts), so no provider is required in CI.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/lgaportal?schema=public
+      AUTH_SECRET: ci-e2e-auth-secret-0123456789abcdef0123456789abcdef
+      AUTH_URL: http://localhost:3000
+      NEXTAUTH_URL: http://localhost:3000
+      AUTH_TRUST_HOST: "true"
+      ADMIN_SECRET: 4a0423d4888f73e76fbbb5655ac5458c09be34d5d4eaa9522f943b9cc3d80666
+      ADMIN_PASSWORD: Admin@Test123
+      NEXT_PUBLIC_ADMIN_SECRET: 4a0423d4888f73e76fbbb5655ac5458c09be34d5d4eaa9522f943b9cc3d80666
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # prisma.config.ts, next dev, and the specs all read .env.local — write it
+      # once so every process sees the same configuration.
+      - name: Write .env.local
+        run: |
+          cat > .env.local <<EOF
+          DATABASE_URL=${DATABASE_URL}
+          AUTH_SECRET=${AUTH_SECRET}
+          AUTH_URL=${AUTH_URL}
+          NEXTAUTH_URL=${NEXTAUTH_URL}
+          AUTH_TRUST_HOST=${AUTH_TRUST_HOST}
+          ADMIN_SECRET=${ADMIN_SECRET}
+          ADMIN_PASSWORD=${ADMIN_PASSWORD}
+          NEXT_PUBLIC_ADMIN_SECRET=${NEXT_PUBLIC_ADMIN_SECRET}
+          NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL}
+          EOF
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Apply migrations
+        run: npx prisma migrate deploy
+
+      # The `api` project is browserless (pure HTTP), so no browser download is
+      # needed. Playwright's webServer boots `npm run dev` and waits for it.
+      - name: Run API integration tests
+        run: npx playwright test --project=api
+
+      # `list` reporter writes failure context (error-context.md) under
+      # test-results/. Upload it when a run fails, for debugging.
+      - name: Upload failure artifacts
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-test-results
+          path: test-results/
+          retention-days: 7
+          if-no-files-found: ignore
