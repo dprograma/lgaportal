@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
     const existing = await db.investor.findUnique({ where: { email: data.email } });
     if (existing) {
       return NextResponse.json(
-        { error: "An investor profile with this email already exists." },
+        { error: "An investor profile with this email already exists.", investorId: existing.id },
         { status: 409 }
       );
     }
