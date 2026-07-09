@@ -103,11 +103,10 @@ async function loginAsCitizen(page: Page, email: string, otpCode: string): Promi
   const injectIp = async (route: import("@playwright/test").Route) =>
     route.continue({ headers: { ...route.request().headers(), "x-forwarded-for": loginIp } });
 
-  // Navigate and submit credentials BEFORE registering the route interceptor.
-  // page.route() enables CDP request interception which adds overhead to every JS
-  // bundle fetch, delaying React hydration enough to cause native GET submission
-  // (the form loses its onSubmit handler and submits via the browser's default GET).
-  await page.goto("/login", { waitUntil: "domcontentloaded" });
+  // networkidle ensures all JS chunks are downloaded and React has hydrated before
+  // we interact. page.route() is registered only after the OTP page loads so that
+  // CDP interception does not delay hydration on the login page.
+  await page.goto("/login", { waitUntil: "networkidle" });
   await page.fill("input[name='email']", email);
   await page.fill("input[name='password']", PASSWORD);
   await page.click("button[type='submit']");
