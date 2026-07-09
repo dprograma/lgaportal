@@ -50,9 +50,8 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
-/* ─── Hardcoded LGA ID placeholder ─────────────────────────────────────────
-   In production this comes from the authenticated LGA session / cookie.      */
-const DEMO_LGA_ID = "demo-lga-id";
+const getLgaId = () =>
+  typeof window !== "undefined" ? sessionStorage.getItem("lgaId") ?? "" : "";
 
 /* ─── Component ──────────────────────────────────────────────────────────── */
 export default function EndowmentsPage() {
@@ -79,7 +78,7 @@ export default function EndowmentsPage() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/lgas/endowments?lgaId=${DEMO_LGA_ID}`);
+      const res = await fetch(`/api/lgas/endowments?lgaId=${getLgaId()}`);
       const json = await res.json();
       setEndowments(json.endowments ?? []);
     } catch {
@@ -126,14 +125,14 @@ export default function EndowmentsPage() {
       .filter(Boolean);
 
     const payload = {
-      ...(editing ? { id: editing.id } : { lgaId: DEMO_LGA_ID }),
+      ...(editing ? { id: editing.id } : {}),
       category:       values.category,
       title:          values.title,
       description:    values.description,
       highlights,
       investmentRange: values.investmentRange ?? null,
       contactPerson:  values.contactPerson  ?? null,
-      contactEmail:   values.contactEmail   || null,
+      contactEmail:   values.contactEmail   || "",
       isPublished:    values.isPublished ?? true,
     };
 

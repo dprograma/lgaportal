@@ -78,7 +78,10 @@ async function seedPendingLGA(request: APIRequestContext, ip: string): Promise<{
 
   // Verify email so the LGA chairman can log in, but leave status = PENDING
   const token = await lgarVerToken(email);
-  const ver = await request.post("/api/lga/verify", { data: { token } });
+  const ver = await request.post("/api/lga/verify", {
+    headers: { "x-forwarded-for": ip },
+    data: { token },
+  });
   expect(ver.status(), "seed: LGA verify").toBe(200);
 
   return { lgaId, lgaName };
@@ -144,8 +147,8 @@ test.describe("Admin browser journey", () => {
     await expect(approveBtn).toBeVisible({ timeout: 15_000 });
     await approveBtn.click();
 
-    // Toast success
-    await expect(page.getByText(/approved/i)).toBeVisible({ timeout: 10_000 });
+    // Toast success: `${lgaName} approved.` — the trailing period distinguishes it from "APPROVED" status badges
+    await expect(page.getByText(/approved\./i)).toBeVisible({ timeout: 10_000 });
 
     // DB confirms the status changed
     await expect.poll(() => lgaStatus(lgaId), { timeout: 10_000 }).toBe("APPROVED");
