@@ -75,10 +75,14 @@ type Tab = "overview" | "wards" | "endowments" | "projects" | "posts" | "archive
 function InquiryModal({
   endowmentTitle,
   lgaName,
+  lgaId,
+  endowmentId,
   onClose,
 }: {
   endowmentTitle: string;
   lgaName: string;
+  lgaId: string;
+  endowmentId?: string;
   onClose: () => void;
 }) {
   const [step, setStep]         = useState<"form" | "success">("form");
@@ -94,10 +98,40 @@ function InquiryModal({
       return;
     }
     setLoading(true);
-    // In production, POST to /api/investors/inquiries
-    await new Promise((r) => setTimeout(r, 800));
-    setLoading(false);
-    setStep("success");
+    setError("");
+    try {
+      // Register (or find existing) investor, then submit the inquiry.
+      const regRes = await fetch("/api/investors/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: name.trim(),
+          email: email.trim(),
+          country: "Nigeria",
+          sectors: ["General"],
+        }),
+      });
+      const regJson = await regRes.json();
+      if (regRes.status !== 201 && regRes.status !== 409) {
+        throw new Error(regJson.error ?? "Registration failed");
+      }
+      const investorId: string = regJson.investorId;
+
+      const inqRes = await fetch("/api/investors/inquiries", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ investorId, lgaId, endowmentId, message: message.trim() }),
+      });
+      if (!inqRes.ok) {
+        const inqJson = await inqRes.json().catch(() => ({}));
+        throw new Error(inqJson.error ?? "Inquiry failed");
+      }
+      setStep("success");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -201,7 +235,7 @@ function InquiryModal({
 export default function LGAProfilePage() {
   const params    = useParams<{ slug: string }>();
   const [tab, setTab]           = useState<Tab>("wards");
-  const [inquiry, setInquiry]   = useState<{ title: string } | null>(null);
+  const [inquiry, setInquiry]   = useState<{ title: string; endowmentId?: string } | null>(null);
   const [lga, setLga]           = useState<LGAData | null>(null);
   const [notFound, setNotFound] = useState(false);
 
@@ -718,7 +752,7 @@ export default function LGAProfilePage() {
                             )}
                           </div>
                           <button
-                            onClick={() => setInquiry({ title: e.title })}
+                            onClick={() => setInquiry({ title: e.title, endowmentId: e.id })}
                             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-green-700 hover:bg-green-800 text-white text-xs font-semibold transition-colors"
                           >
                             Express Interest <ArrowRight className="h-3 w-3" />
@@ -998,6 +1032,8 @@ export default function LGAProfilePage() {
         <InquiryModal
           endowmentTitle={inquiry.title}
           lgaName={lga.lgaName}
+          lgaId={lga.id}
+          endowmentId={inquiry.endowmentId}
           onClose={() => setInquiry(null)}
         />
       )}
