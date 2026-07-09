@@ -1,16 +1,17 @@
 /**
- * Browser E2E for the LGA CHAIRMAN dashboard journey through the real UI:
+ * Browser E2E for the complete LGA CHAIRMAN dashboard journey:
  *
- *   lga-login → OTP (2FA) → dashboard → publish a post via the modal.
+ *   lga-login → OTP (2FA) → dashboard → publish post → add endowment →
+ *   submit press release → sign out.
  *
- * A verified LGA/chairman is seeded over the API (so the browser flow isn't
- * subject to registration rate limits), the OTP code is seeded directly for
- * determinism, and the published post is confirmed in the database.
+ * A verified LGA/chairman is seeded over the API (bypasses registration rate
+ * limits), OTP codes are seeded directly in the DB for determinism, and all
+ * write operations are confirmed in the database.
  *
  * Run with:  npx playwright test --project=chromium lga-dashboard-browser
  */
 
-import { test, expect, type APIRequestContext } from "@playwright/test";
+import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
 import { Pool } from "pg";
 import { config } from "dotenv";
 
@@ -21,6 +22,10 @@ const uniq = () => `${Date.now()}${Math.floor(Math.random() * 1000)}`;
 
 const RUN_OCTET = Math.floor(Math.random() * 254) + 1;
 const ipFor = (role: number) => `198.23.${RUN_OCTET}.${role}`;
+
+// Each browser login gets a unique IP so they never share the in-memory rate-limit bucket
+let _loginCounter = 0;
+const nextLoginIp = () => `198.23.${RUN_OCTET}.${200 + _loginCounter++}`;
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 test.afterAll(async () => { await pool.end(); });
@@ -35,9 +40,11 @@ async function chairmanToken(email: string): Promise<string> {
   return rows[0]?.token ?? "";
 }
 
-/** Seed a known, unused LGA_LOGIN OTP code directly (deterministic). */
 async function seedLgaOtp(email: string, code: string): Promise<void> {
-  await pool.query(`DELETE FROM otp_codes WHERE identifier = $1 AND purpose = 'LGA_LOGIN'`, [email.toLowerCase()]);
+  await pool.query(
+    `DELETE FROM otp_codes WHERE identifier = $1 AND purpose = 'LGA_LOGIN'`,
+    [email.toLowerCase()]
+  );
   await pool.query(
     `INSERT INTO otp_codes (id, identifier, code, purpose, attempts, "expiresAt", "createdAt")
      VALUES (gen_random_uuid()::text, $1, $2, 'LGA_LOGIN', 0, now() + interval '5 minutes', now())`,
@@ -53,10 +60,29 @@ async function postCount(lgaId: string, title: string): Promise<number> {
   return rows[0]?.n ?? 0;
 }
 
+async function endowmentCount(lgaId: string, title: string): Promise<number> {
+  const { rows } = await pool.query(
+    `SELECT count(*)::int AS n FROM lga_endowments WHERE "lgaId" = $1 AND title = $2`,
+    [lgaId, title]
+  );
+  return rows[0]?.n ?? 0;
+}
+
+async function pressReleaseCount(lgaId: string, title: string): Promise<number> {
+  const { rows } = await pool.query(
+    `SELECT count(*)::int AS n FROM press_releases WHERE "lgaId" = $1 AND title = $2`,
+    [lgaId, title]
+  );
+  return rows[0]?.n ?? 0;
+}
+
 /** Register + verify an LGA over the API; returns the chairman email + lgaId. */
-async function seedVerifiedLGA(request: APIRequestContext, ip: string): Promise<{ email: string; lgaId: string }> {
+async function seedVerifiedLGA(
+  request: APIRequestContext,
+  ip: string,
+): Promise<{ email: string; lgaId: string }> {
   const suffix = uniq();
-  const email = `chairman_${suffix}@example.com`;
+  const email  = `chairman_${suffix}@example.com`;
   const reg = await request.post("/api/lga/register", {
     headers: { "x-forwarded-for": ip },
     data: {
@@ -67,50 +93,120 @@ async function seedVerifiedLGA(request: APIRequestContext, ip: string): Promise<
   });
   expect(reg.status(), "seed: LGA register").toBe(201);
   const { lgaId } = await reg.json();
-  const ver = await request.post("/api/lga/verify", { data: { token: await chairmanToken(email) } });
+  const ver = await request.post("/api/lga/verify", {
+    headers: { "x-forwarded-for": ip },
+    data: { token: await chairmanToken(email) },
+  });
   expect(ver.status(), "seed: LGA verify").toBe(200);
   return { email, lgaId };
 }
 
+/**
+ * Drive the full login → OTP → dashboard flow and return a page already
+ * authenticated and sitting on /lga-dashboard.
+ */
+async function loginAsChairman(page: Page, email: string, otpCode: string): Promise<void> {
+  // Unique IP per call — prevents rate-limit exhaustion on both login and OTP verify
+  const loginIp = nextLoginIp();
+  const injectIp = async (route: import("@playwright/test").Route) =>
+    route.continue({ headers: { ...route.request().headers(), "x-forwarded-for": loginIp } });
+  await page.route("**/api/lga/login",  injectIp);
+  await page.route("**/api/otp/verify", injectIp);
+
+  await page.goto("/lga-login", { waitUntil: "domcontentloaded" });
+  await page.fill("input[name='email']", email);
+  await page.fill("input[name='password']", PASSWORD);
+  await page.click("button[type='submit']");
+
+  await expect(page).toHaveURL(/verify-otp.*LGA_LOGIN/, { timeout: 15_000 });
+  await seedLgaOtp(email, otpCode);
+  const boxes = page.locator("input[maxlength='1'][inputmode='numeric']");
+  await expect(boxes).toHaveCount(6);
+  for (let i = 0; i < 6; i++) await boxes.nth(i).fill(otpCode[i]);
+
+  // Match pathname only: /lga-dashboard or /lga-dashboard/* but NOT verify-otp?...next=/lga-dashboard
+  await expect(page).toHaveURL(/\/lga-dashboard(?:$|\/|\?)/, { timeout: 15_000 });
+}
+
 test.describe("LGA chairman dashboard journey — browser", () => {
+
   test("the dashboard redirects to lga-login when not authenticated", async ({ page }) => {
     await page.goto("/lga-dashboard", { waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/\/lga-login/, { timeout: 15_000 });
   });
 
-  test("chairman logs in, passes OTP, reaches the dashboard and publishes a post", async ({ page, request }) => {
-    const { email, lgaId } = await seedVerifiedLGA(request, ipFor(1));
+  test("chairman logs in, passes OTP, and reaches the dashboard", async ({ page, request }) => {
+    const { email } = await seedVerifiedLGA(request, ipFor(1));
+    await loginAsChairman(page, email, "111222");
+    await expect(page.locator("body")).toContainText(/dashboard|overview|welcome/i, { timeout: 10_000 });
+  });
 
-    // 1) Sign in through the LGA login form.
-    await page.goto("/lga-login", { waitUntil: "domcontentloaded" });
-    await page.fill("input[name='email']", email);
-    await page.fill("input[name='password']", PASSWORD);
-    await page.click("button[type='submit']");
+  test("chairman publishes a post via the dashboard UI", async ({ page, request }) => {
+    const { email, lgaId } = await seedVerifiedLGA(request, ipFor(2));
+    await loginAsChairman(page, email, "222333");
 
-    // 2) Land on the OTP (2FA) step, then complete it with a seeded code.
-    await expect(page).toHaveURL(/verify-otp.*LGA_LOGIN/, { timeout: 15_000 });
-    const code = "123456";
-    await seedLgaOtp(email, code);
-    const boxes = page.locator("input[maxlength='1'][inputmode='numeric']");
-    await expect(boxes).toHaveCount(6);
-    for (let i = 0; i < 6; i++) await boxes.nth(i).fill(code[i]);
-
-    // 3) The OTP page stores the session and redirects to the dashboard.
-    await expect(page).toHaveURL(/\/lga-dashboard/, { timeout: 15_000 });
-
-    // 4) Publish a post through the dashboard UI.
     await page.goto("/lga-dashboard/posts", { waitUntil: "domcontentloaded" });
     await page.getByRole("button", { name: /new post|create post/i }).first().click();
 
     const title = `Ward briefing ${uniq()}`;
     await page.fill("input[placeholder='Post title…']", title);
-    await page.fill("textarea[placeholder='Write your post content here…']", "An official update published from the dashboard UI during an E2E test.");
+    await page.fill("textarea[placeholder='Write your post content here…']", "An official update published via the dashboard UI during an E2E test.");
     await page.getByRole("button", { name: /publish post/i }).click();
 
-    // 5) The UI confirms success…
     await expect(page.getByText(/post published successfully/i)).toBeVisible({ timeout: 15_000 });
-
-    // …and the post is really persisted under this LGA.
     await expect.poll(() => postCount(lgaId, title), { timeout: 10_000 }).toBe(1);
   });
+
+  test("chairman adds an endowment listing via the dashboard UI", async ({ page, request }) => {
+    const { email, lgaId } = await seedVerifiedLGA(request, ipFor(3));
+    await loginAsChairman(page, email, "333444");
+
+    await page.goto("/lga-dashboard/endowments", { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: /add endowment/i }).first().click();
+
+    // Pick a category (grid of toggle buttons — click "Agriculture")
+    await page.getByRole("button", { name: /^Agriculture$/i }).click();
+
+    const endTitle = `Coal seam deposit ${uniq()}`;
+    await page.fill("input[placeholder*='Coal']", endTitle);
+    await page.fill("textarea[placeholder*='Describe this']", "Extensive bituminous coal seams with high energy output, suitable for industrial-scale extraction.");
+    await page.fill("textarea[placeholder*='Extensive coal']", "Commercially viable reserves\nProximity to rail network\nEstimated 50-year yield");
+
+    // Submit (the toggle defaults to isPublished=true)
+    await page.getByRole("button", { name: /publish endowment/i }).click();
+
+    await expect(page.getByText("Endowment published.")).toBeVisible({ timeout: 15_000 });
+    await expect.poll(() => endowmentCount(lgaId, endTitle), { timeout: 10_000 }).toBe(1);
+  });
+
+  test("chairman submits a press release for admin review", async ({ page, request }) => {
+    const { email, lgaId } = await seedVerifiedLGA(request, ipFor(4));
+    await loginAsChairman(page, email, "444555");
+
+    await page.goto("/lga-dashboard/press-releases", { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: /new release/i }).click();
+
+    const prTitle = `Council budget statement ${uniq()}`;
+    await page.fill("input[placeholder='Press release headline…']", prTitle);
+    // Date Issued: native date input — fill with today's date
+    const today = new Date().toISOString().split("T")[0];
+    await page.locator("input[type='date']").fill(today);
+    await page.fill("textarea[placeholder*='full text']", "The council has approved the annual budget for the upcoming fiscal year, prioritising infrastructure and healthcare.");
+
+    await page.getByRole("button", { name: /submit for review/i }).click();
+
+    await expect(page.getByText(/press release submitted for admin review/i)).toBeVisible({ timeout: 15_000 });
+    await expect.poll(() => pressReleaseCount(lgaId, prTitle), { timeout: 10_000 }).toBe(1);
+  });
+
+  test("chairman signs out and is redirected to lga-login", async ({ page, request }) => {
+    const { email } = await seedVerifiedLGA(request, ipFor(5));
+    await loginAsChairman(page, email, "555666");
+
+    // The Sign Out button is in the sidebar (desktop layout)
+    await page.getByRole("button", { name: /sign out/i }).click();
+
+    await expect(page).toHaveURL(/\/lga-login/, { timeout: 15_000 });
+  });
+
 });

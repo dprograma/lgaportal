@@ -79,7 +79,10 @@ async function seedApprovedLGAWithEndowment(
   const { lgaId } = await reg.json();
 
   // 2. Verify email
-  const ver = await request.post("/api/lga/verify", { data: { token: await chairmanToken(email) } });
+  const ver = await request.post("/api/lga/verify", {
+    headers: { "x-forwarded-for": ip },
+    data: { token: await chairmanToken(email) },
+  });
   expect(ver.status(), "seed: LGA verify").toBe(200);
 
   // 3. Approve in DB (normally done by admin)
