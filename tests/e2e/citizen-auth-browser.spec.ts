@@ -64,6 +64,11 @@ async function dbPhone(userId: string): Promise<string | null> {
   return rows[0]?.phone ?? null;
 }
 
+async function dbImage(userId: string): Promise<string | null> {
+  const { rows } = await pool.query(`SELECT image FROM users WHERE id = $1`, [userId]);
+  return rows[0]?.image ?? null;
+}
+
 /** Register + verify a citizen via the API; returns email and userId. */
 async function seedVerifiedCitizen(
   request: APIRequestContext,
@@ -183,6 +188,36 @@ test.describe("Citizen browser journey", () => {
     // DB confirms both fields were persisted
     await expect.poll(() => dbName(userId), { timeout: 10_000 }).toBe(newName);
     await expect.poll(() => dbPhone(userId), { timeout: 10_000 }).toBe("08099887766");
+  });
+
+  test("citizen uploads a profile photo and it is persisted in the DB", async ({ page, request }) => {
+    const { email, userId } = await seedVerifiedCitizen(request, ipFor(6));
+    await loginAsCitizen(page, email, "567890");
+
+    const nameInput = page.locator("input[name='name']");
+    await expect(nameInput).toBeVisible({ timeout: 10_000 });
+
+    // Tiny 1x1 PNG — the hidden file input behind the camera button accepts image/*
+    const tinyPng = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+      "base64"
+    );
+    await page.locator("input[type='file']").setInputFiles({
+      name: "avatar.png",
+      mimeType: "image/png",
+      buffer: tinyPng,
+    });
+
+    // LGA must be filled: safeString("LGA").optional() still enforces min(2) — empty string fails
+    await page.locator("input[name='lga']").fill("Dala");
+    await page.getByRole("button", { name: /save changes/i }).click();
+
+    await expect(page.getByText(/profile updated successfully/i)).toBeVisible({ timeout: 15_000 });
+
+    // Image is stored as a data URI directly in the DB — no filesystem dependency
+    await expect
+      .poll(() => dbImage(userId), { timeout: 10_000 })
+      .toEqual(expect.stringMatching(/^data:image\/png;base64,/));
   });
 
   test("citizen changes their password on the settings page", async ({ page, request }) => {

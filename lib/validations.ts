@@ -1,7 +1,8 @@
 import { z } from "zod";
 
 const noSQLInjection = (val: string) =>
-  !/(--|;|\/\*|\*\/|xp_|exec|select|insert|update|delete|drop|union|char\(|nchar\()/i.test(val);
+  !/(--|;|\/\*|\*\/|xp_|char\(|nchar\()/i.test(val) &&
+  !/\b(select|insert|update|delete|drop|union|exec)\b/i.test(val);
 
 const noXSS = (val: string) =>
   !/<script|javascript:|on\w+\s*=|<iframe|<object|<embed/i.test(val);
@@ -73,7 +74,7 @@ export const updateProfileSchema = z.object({
     .optional()
     .or(z.literal("")),
   state: z.string().optional(),
-  lga: safeString("LGA").optional(),
+  lga: safeString("LGA").optional().or(z.literal("")),
 });
 
 export const changePasswordSchema = z
