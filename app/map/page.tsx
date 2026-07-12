@@ -79,7 +79,7 @@ export default function MapPage() {
         </div>
 
         {/* Search */}
-        <div className="flex-1 flex items-center gap-2 bg-slate-100 rounded-lg px-3 py-1.5 max-w-sm">
+        <div className="flex-1 min-w-0 flex items-center gap-2 bg-slate-100 rounded-lg px-3 py-1.5 max-w-sm">
           <Search className="h-3.5 w-3.5 text-slate-400 shrink-0" />
           <input
             type="text"

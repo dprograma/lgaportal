@@ -124,7 +124,7 @@ export default function Footer() {
               placeholder="Enter your email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="flex-1 sm:w-64 px-4 py-2.5 rounded-xl bg-slate-700 border border-slate-600 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-green-500 transition-colors"
+              className="flex-1 min-w-0 sm:w-64 px-4 py-2.5 rounded-xl bg-slate-700 border border-slate-600 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-green-500 transition-colors"
             />
             <button
               onClick={() => setEmail("")}

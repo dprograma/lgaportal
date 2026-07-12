@@ -179,9 +179,9 @@ export default function EndowmentsPage() {
 
       {/* Header */}
       <div className="flex items-start justify-between gap-4 mb-8">
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <TrendingUp className="h-5 w-5 text-green-600" />
+            <TrendingUp className="h-5 w-5 text-green-600 shrink-0" />
             <h1 className="text-2xl font-bold text-slate-900">Natural Endowments</h1>
           </div>
           <p className="text-slate-500 text-sm">

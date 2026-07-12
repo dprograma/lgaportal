@@ -423,9 +423,10 @@ export default function LGAProfilePage() {
         </div>
       </div>
 
-      {/* Tab bar */}
+      {/* Tab bar — scrolls within its own bounds; 9 tabs can't fit any mobile
+          screen, so this is a contained scroll, not a page-level one */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-20">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 flex gap-0">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 flex gap-0 overflow-x-auto">
           {([
             { id: "wards",      label: "Wards & Councillors"    },
             { id: "posts",      label: "Posts & Updates"        },

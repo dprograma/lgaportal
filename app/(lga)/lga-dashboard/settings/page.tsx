@@ -136,9 +136,9 @@ export default function LGASettingsPage() {
             { label: "Email",          value: profile.email },
             { label: "Account Status", value: profile.status },
           ].map(({ label, value }) => (
-            <div key={label}>
+            <div key={label} className="min-w-0">
               <p className="text-xs text-slate-400 mb-0.5">{label}</p>
-              <p className="text-sm font-medium text-slate-800">{value}</p>
+              <p className="text-sm font-medium text-slate-800 break-words">{value}</p>
             </div>
           ))}
         </div>
