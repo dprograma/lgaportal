@@ -64,6 +64,11 @@ async function dbPhone(userId: string): Promise<string | null> {
   return rows[0]?.phone ?? null;
 }
 
+async function dbImage(userId: string): Promise<string | null> {
+  const { rows } = await pool.query(`SELECT image FROM users WHERE id = $1`, [userId]);
+  return rows[0]?.image ?? null;
+}
+
 /** Register + verify a citizen via the API; returns email and userId. */
 async function seedVerifiedCitizen(
   request: APIRequestContext,
@@ -103,11 +108,10 @@ async function loginAsCitizen(page: Page, email: string, otpCode: string): Promi
   const injectIp = async (route: import("@playwright/test").Route) =>
     route.continue({ headers: { ...route.request().headers(), "x-forwarded-for": loginIp } });
 
-  // Navigate and submit credentials BEFORE registering the route interceptor.
-  // page.route() enables CDP request interception which adds overhead to every JS
-  // bundle fetch, delaying React hydration enough to cause native GET submission
-  // (the form loses its onSubmit handler and submits via the browser's default GET).
-  await page.goto("/login", { waitUntil: "domcontentloaded" });
+  // networkidle ensures all JS chunks are downloaded and React has hydrated before
+  // we interact. page.route() is registered only after the OTP page loads so that
+  // CDP interception does not delay hydration on the login page.
+  await page.goto("/login", { waitUntil: "networkidle" });
   await page.fill("input[name='email']", email);
   await page.fill("input[name='password']", PASSWORD);
   await page.click("button[type='submit']");
@@ -184,6 +188,67 @@ test.describe("Citizen browser journey", () => {
     // DB confirms both fields were persisted
     await expect.poll(() => dbName(userId), { timeout: 10_000 }).toBe(newName);
     await expect.poll(() => dbPhone(userId), { timeout: 10_000 }).toBe("08099887766");
+  });
+
+  test("citizen uploads a realistically-sized profile photo and it survives a refresh", async ({ page, request }) => {
+    const { email, userId } = await seedVerifiedCitizen(request, ipFor(6));
+    await loginAsCitizen(page, email, "567890");
+
+    const nameInput = page.locator("input[name='name']");
+    await expect(nameInput).toBeVisible({ timeout: 10_000 });
+
+    // ~300KB — a realistic phone-photo size. The image is stored as a data: URI
+    // in the DB (no filesystem dependency), but that same string must NEVER be
+    // pushed into the NextAuth session/JWT cookie: a real photo blows past
+    // cookie/response-header size limits, breaking the post-save session
+    // update (surfaces as a misleading "something went wrong" error even
+    // though the save succeeded).
+    const bigImage = Buffer.alloc(300 * 1024, 0xab);
+    await page.locator("input[type='file']").setInputFiles({
+      name: "avatar.png",
+      mimeType: "image/png",
+      buffer: bigImage,
+    });
+
+    // LGA must be filled: safeString("LGA").optional() still enforces min(2) — empty string fails
+    await page.locator("input[name='lga']").fill("Dala");
+    await page.getByRole("button", { name: /save changes/i }).click();
+
+    // Must be the real success toast, not the generic catch-all error that fires
+    // if the post-save session update() throws (ERR_RESPONSE_HEADERS_TOO_BIG).
+    await expect(page.getByText(/profile updated successfully/i)).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/something went wrong/i)).not.toBeVisible();
+
+    await expect
+      .poll(() => dbImage(userId), { timeout: 10_000 })
+      .toEqual(expect.stringMatching(/^data:image\/png;base64,/));
+
+    // Refresh — the avatar must be re-fetched from the DB via GET /api/profile,
+    // not lost because it never made it into (or broke) the session.
+    await page.reload({ waitUntil: "networkidle" });
+    const avatarImg = page.locator("img[alt='Profile']");
+    await expect(avatarImg).toBeVisible({ timeout: 10_000 });
+    await expect(avatarImg).toHaveAttribute("src", /^data:image\/png;base64,/);
+  });
+
+  test("a citizen with a large saved avatar can still log in", async ({ page, request }) => {
+    // Regression guard: if the avatar's data: URI ever ends up in the JWT
+    // (e.g. via the credentials `authorize()` -> jwt callback path at sign-in,
+    // not just the post-save update() call), the sign-in response itself would
+    // blow past cookie/header size limits and break login for any citizen who
+    // already has a saved photo.
+    const { email, userId } = await seedVerifiedCitizen(request, ipFor(7));
+    const bigImage = `data:image/png;base64,${Buffer.alloc(300 * 1024, 0xcd).toString("base64")}`;
+    await pool.query(`UPDATE users SET image = $1 WHERE id = $2`, [bigImage, userId]);
+
+    await loginAsCitizen(page, email, "789012");
+
+    await expect(page.locator("h1")).toContainText(/My Profile/i, { timeout: 10_000 });
+    await expect(page.locator("img[alt='Profile']")).toHaveAttribute(
+      "src",
+      /^data:image\/png;base64,/,
+      { timeout: 10_000 }
+    );
   });
 
   test("citizen changes their password on the settings page", async ({ page, request }) => {

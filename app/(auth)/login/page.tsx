@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion } from "framer-motion";
@@ -35,6 +35,17 @@ const trustPoints = [
   "Secure, verified citizen platform",
 ];
 
+// NextAuth redirects here with `?error=<code>` when a social sign-in fails —
+// this is the only page configured as both `signIn` and `error` in auth.ts.
+const OAUTH_ERROR_MESSAGES: Record<string, string> = {
+  Configuration: "Social sign-in isn't available right now. Please sign in with your email and password instead.",
+  AccessDenied: "Sign-in was cancelled.",
+  OAuthAccountNotLinked: "That email is already registered. Please sign in with your email and password instead.",
+  OAuthSignin: "Couldn't start social sign-in. Please try again.",
+  OAuthCallback: "Social sign-in failed. Please try again.",
+  Default: "Something went wrong signing you in. Please try again.",
+};
+
 // ─── Inner content (needs useSearchParams) ─────────────────────────────────
 
 function LoginContent() {
@@ -42,6 +53,16 @@ function LoginContent() {
   const searchParams = useSearchParams();
   const callbackUrl  = searchParams.get("callbackUrl") ?? "/profile";
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const error = searchParams.get("error");
+    if (!error) return;
+    toast.error(OAUTH_ERROR_MESSAGES[error] ?? OAUTH_ERROR_MESSAGES.Default);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("error");
+    router.replace(url.pathname + url.search);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const {
     register,

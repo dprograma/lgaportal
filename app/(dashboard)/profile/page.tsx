@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -25,8 +25,9 @@ import { Select } from "@/components/ui/select";
 import Button from "@/components/ui/button";
 
 export default function ProfilePage() {
-  const { data: session, update } = useSession();
+  const { data: session, status: sessionStatus, update } = useSession();
   const [loading, setLoading] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(true);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [avatarFile, setAvatarFile] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -37,16 +38,48 @@ export default function ProfilePage() {
     register,
     handleSubmit,
     control,
+    reset,
     formState: { errors },
   } = useForm<UpdateProfileInput>({
     resolver: zodResolver(updateProfileSchema),
     defaultValues: {
-      name: user?.name ?? "",
+      name: "",
       phone: "",
       state: "",
       lga: "",
     },
   });
+
+  // The session JWT only carries name/email/image/role — phone, state and LGA
+  // live in the database. Fetch and prefill them so saving doesn't wipe them
+  // out with the form's blank defaults.
+  useEffect(() => {
+    if (sessionStatus !== "authenticated") return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch("/api/profile");
+        const json = await res.json();
+        if (cancelled || !res.ok) return;
+        reset({
+          name: json.user?.name ?? "",
+          phone: json.user?.phone ?? "",
+          state: json.user?.state ?? "",
+          lga: json.user?.lga ?? "",
+        });
+        if (json.user?.image) setAvatarPreview(json.user.image);
+      } catch {
+        toast.error("Couldn't load your profile. Please refresh the page.");
+      } finally {
+        if (!cancelled) setProfileLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionStatus, reset]);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -77,7 +110,11 @@ export default function ProfilePage() {
         toast.error(json.error ?? "Failed to update profile.");
         return;
       }
-      await update({ name: data.name, picture: json.user?.image });
+      // Deliberately omit the avatar here — it's stored as a data: URI and can be
+      // hundreds of KB, which would blow past the session cookie's size limit if
+      // pushed into the JWT. The avatar card already reflects the new image via
+      // avatarPreview; other places that need it read from GET /api/profile.
+      await update({ name: data.name });
       toast.success("Profile updated successfully!");
     } catch {
       toast.error("Something went wrong. Please try again.");
@@ -178,60 +215,71 @@ export default function ProfilePage() {
               </h3>
             </div>
 
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <Input
-                label="Full Name"
-                placeholder="Your full name"
-                leftIcon={<User className="h-4 w-4" />}
-                error={errors.name?.message}
-                {...register("name")}
-              />
-              <Input
-                label="Phone Number"
-                type="tel"
-                placeholder="08012345678"
-                leftIcon={<Phone className="h-4 w-4" />}
-                error={errors.phone?.message}
-                {...register("phone")}
-              />
-              <div className="grid sm:grid-cols-2 gap-4">
-                <Controller
-                  name="state"
-                  control={control}
-                  render={({ field }) => (
-                    <Select
-                      label="State"
-                      placeholder="Select state"
-                      error={errors.state?.message}
-                      {...field}
-                    >
-                      {NIGERIA_STATES.map((s) => (
-                        <option key={s} value={s}>
-                          {s}
-                        </option>
-                      ))}
-                    </Select>
-                  )}
+            {profileLoading ? (
+              <div className="space-y-4 animate-pulse" aria-label="Loading profile">
+                <div className="h-11 rounded-lg bg-slate-100" />
+                <div className="h-11 rounded-lg bg-slate-100" />
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <div className="h-11 rounded-lg bg-slate-100" />
+                  <div className="h-11 rounded-lg bg-slate-100" />
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                <Input
+                  label="Full Name"
+                  placeholder="Your full name"
+                  leftIcon={<User className="h-4 w-4" />}
+                  error={errors.name?.message}
+                  {...register("name")}
                 />
                 <Input
-                  label="LGA"
-                  placeholder="Your LGA"
-                  leftIcon={<MapPin className="h-4 w-4" />}
-                  error={errors.lga?.message}
-                  {...register("lga")}
+                  label="Phone Number"
+                  type="tel"
+                  placeholder="08012345678"
+                  leftIcon={<Phone className="h-4 w-4" />}
+                  error={errors.phone?.message}
+                  {...register("phone")}
                 />
-              </div>
-              <div className="flex justify-end pt-2">
-                <Button
-                  type="submit"
-                  variant="primary"
-                  loading={loading}
-                  leftIcon={<Save className="h-4 w-4" />}
-                >
-                  Save Changes
-                </Button>
-              </div>
-            </form>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  <Controller
+                    name="state"
+                    control={control}
+                    render={({ field }) => (
+                      <Select
+                        label="State"
+                        placeholder="Select state"
+                        error={errors.state?.message}
+                        {...field}
+                      >
+                        {NIGERIA_STATES.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </Select>
+                    )}
+                  />
+                  <Input
+                    label="LGA"
+                    placeholder="Your LGA"
+                    leftIcon={<MapPin className="h-4 w-4" />}
+                    error={errors.lga?.message}
+                    {...register("lga")}
+                  />
+                </div>
+                <div className="flex justify-end pt-2">
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    loading={loading}
+                    leftIcon={<Save className="h-4 w-4" />}
+                  >
+                    Save Changes
+                  </Button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
 
