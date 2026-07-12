@@ -30,7 +30,7 @@ export default function TopBar() {
             <span className="w-3 h-4 rounded-sm bg-white inline-block" />
             <span className="w-3 h-4 rounded-sm bg-[#008751] inline-block" />
           </div>
-          <span className="text-[11px] text-green-300 font-semibold uppercase tracking-widest">
+          <span className="hidden sm:inline text-[11px] text-green-300 font-semibold uppercase tracking-widest">
             Federal Republic of Nigeria
           </span>
         </div>
@@ -55,11 +55,11 @@ export default function TopBar() {
         <div className="flex items-center gap-2 shrink-0">
           <Link
             href="/lga-signup"
-            className="text-[11px] text-green-300 hover:text-white font-semibold transition-colors"
+            className="hidden sm:inline text-[11px] text-green-300 hover:text-white font-semibold transition-colors"
           >
             Register Your LGA →
           </Link>
-          <span className="text-green-700 text-[11px]">|</span>
+          <span className="hidden sm:inline text-green-700 text-[11px]">|</span>
           <Link
             href="/login"
             className="text-[11px] text-green-300 hover:text-white font-semibold transition-colors"

@@ -120,21 +120,24 @@ export default function ProjectsFeed() {
           </motion.p>
         </div>
 
-        {/* Filter tabs */}
-        <div className="flex gap-1 p-1 bg-slate-100 rounded-2xl w-fit mx-auto mb-10">
-          {filters.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => setFilter(f.value)}
-              className={
-                filter === f.value
-                  ? "bg-white text-green-700 shadow-sm px-6 py-2.5 rounded-xl text-sm font-semibold transition-all"
-                  : "text-slate-500 px-6 py-2.5 rounded-xl text-sm font-medium transition-all hover:text-slate-700"
-              }
-            >
-              {f.label}
-            </button>
-          ))}
+        {/* Filter tabs — scrolls within its own bounds on narrow screens rather
+            than ever pushing the page itself into horizontal scroll */}
+        <div className="overflow-x-auto mb-10">
+          <div className="flex gap-1 p-1 bg-slate-100 rounded-2xl w-fit mx-auto">
+            {filters.map((f) => (
+              <button
+                key={f.value}
+                onClick={() => setFilter(f.value)}
+                className={
+                  filter === f.value
+                    ? "bg-white text-green-700 shadow-sm px-4 sm:px-6 py-2.5 rounded-xl text-sm font-semibold transition-all whitespace-nowrap"
+                    : "text-slate-500 px-4 sm:px-6 py-2.5 rounded-xl text-sm font-medium transition-all hover:text-slate-700 whitespace-nowrap"
+                }
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Loading */}

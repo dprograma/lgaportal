@@ -103,10 +103,10 @@ export default function LGADashboardPage() {
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-start justify-between gap-4">
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2 mb-1">
-              <Building2 className="h-5 w-5 text-green-600" />
-              <h1 className="text-2xl font-bold text-slate-900">
+              <Building2 className="h-5 w-5 text-green-600 shrink-0" />
+              <h1 className="text-2xl font-bold text-slate-900 break-words">
                 {lga ? `${lga.lgaName} LGA Dashboard` : "LGA Dashboard"}
               </h1>
               {lga?.isVerified && <BadgeCheck className="h-5 w-5 text-green-600" />}

@@ -122,16 +122,16 @@ export default function AdminProcurementPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
       <div className="mb-6 flex items-start justify-between gap-4">
-        <div>
+        <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <FileText className="h-5 w-5 text-green-400" />
+            <FileText className="h-5 w-5 text-green-400 shrink-0" />
             <h1 className="text-2xl font-bold text-white">Procurement Contracts</h1>
           </div>
           <p className="text-green-200/60 text-sm">{total.toLocaleString()} contract records</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-semibold"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-semibold shrink-0"
         >
           <Plus className="h-4 w-4" /> Add Contract
         </button>

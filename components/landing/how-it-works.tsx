@@ -84,25 +84,28 @@ export default function HowItWorks() {
           </p>
         </div>
 
-        {/* Tab bar */}
-        <div className="flex gap-1 p-1 bg-slate-200 rounded-2xl w-fit mx-auto mb-14">
-          {([
-            { id: "lga",      label: "🏛️ For LGAs"       },
-            { id: "investor", label: "💼 For Investors"   },
-            { id: "citizen",  label: "👤 For Citizens"    },
-          ] as { id: Tab; label: string }[]).map(({ id, label }) => (
-            <button
-              key={id}
-              onClick={() => setTab(id)}
-              className={
-                tab === id
-                  ? "bg-white text-green-700 shadow-sm px-6 py-2.5 rounded-xl text-sm font-semibold transition-all"
-                  : "text-slate-500 px-6 py-2.5 rounded-xl text-sm font-medium transition-all hover:text-slate-700"
-              }
-            >
-              {label}
-            </button>
-          ))}
+        {/* Tab bar — scrolls within its own bounds on narrow screens rather
+            than ever pushing the page itself into horizontal scroll */}
+        <div className="overflow-x-auto mb-14">
+          <div className="flex gap-1 p-1 bg-slate-200 rounded-2xl w-fit mx-auto">
+            {([
+              { id: "lga",      label: "🏛️ For LGAs"       },
+              { id: "investor", label: "💼 For Investors"   },
+              { id: "citizen",  label: "👤 For Citizens"    },
+            ] as { id: Tab; label: string }[]).map(({ id, label }) => (
+              <button
+                key={id}
+                onClick={() => setTab(id)}
+                className={
+                  tab === id
+                    ? "bg-white text-green-700 shadow-sm px-4 sm:px-6 py-2.5 rounded-xl text-sm font-semibold transition-all whitespace-nowrap"
+                    : "text-slate-500 px-4 sm:px-6 py-2.5 rounded-xl text-sm font-medium transition-all hover:text-slate-700 whitespace-nowrap"
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Steps */}
