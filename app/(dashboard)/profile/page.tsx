@@ -110,7 +110,11 @@ export default function ProfilePage() {
         toast.error(json.error ?? "Failed to update profile.");
         return;
       }
-      await update({ name: data.name, picture: json.user?.image });
+      // Deliberately omit the avatar here — it's stored as a data: URI and can be
+      // hundreds of KB, which would blow past the session cookie's size limit if
+      // pushed into the JWT. The avatar card already reflects the new image via
+      // avatarPreview; other places that need it read from GET /api/profile.
+      await update({ name: data.name });
       toast.success("Profile updated successfully!");
     } catch {
       toast.error("Something went wrong. Please try again.");

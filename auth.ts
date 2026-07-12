@@ -93,10 +93,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id;
         token.role = user.role ?? "CITIZEN";
+        // OAuth avatars are short URLs and safe to store in the JWT. Citizen-
+        // uploaded avatars are stored as data: URIs (often hundreds of KB) —
+        // embedding one here would blow past cookie/response-header size
+        // limits and break the session itself. Never let one in.
+        token.picture = user.image && !user.image.startsWith("data:") ? user.image : undefined;
       }
       if (trigger === "update" && session) {
         token.name = session.name;
-        token.picture = session.picture;
+        if (typeof session.picture === "string" && !session.picture.startsWith("data:")) {
+          token.picture = session.picture;
+        }
       }
       return token;
     },
