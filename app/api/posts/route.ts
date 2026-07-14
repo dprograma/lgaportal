@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { auth } from "@/auth";
-import { requirePublisher } from "@/lib/lga-auth";
+import { requirePublisher, getLgaSession } from "@/lib/lga-auth";
 
 // GET /api/posts?lgaId=...&limit=10&offset=0
 export async function GET(req: NextRequest) {
@@ -18,9 +18,17 @@ export async function GET(req: NextRequest) {
   const session = await auth();
   const userId  = session?.user?.id ?? null;
 
+  // Public visitors only ever see published posts. The LGA's own dashboard
+  // calls this same endpoint to manage its full post list (draft/published/
+  // archived), so the owning LGA — verified via its session, never the
+  // client-supplied lgaId — sees everything.
+  const lgaSession = await getLgaSession(req);
+  const isOwner = lgaSession?.lgaId === lgaId;
+  const where = isOwner ? { lgaId } : { lgaId, status: "PUBLISHED" as const };
+
   const [posts, total] = await Promise.all([
     db.post.findMany({
-      where: { lgaId, status: "PUBLISHED" },
+      where,
       orderBy: { createdAt: "desc" },
       take,
       skip,
@@ -29,7 +37,7 @@ export async function GET(req: NextRequest) {
         reactions: userId ? { where: { userId }, select: { type: true } } : false,
       },
     }),
-    db.post.count({ where: { lgaId, status: "PUBLISHED" } }),
+    db.post.count({ where }),
   ]);
 
   // Aggregate reaction counts per post
