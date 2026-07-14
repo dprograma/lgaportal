@@ -155,6 +155,36 @@ test.describe("LGA chairman dashboard journey — browser", () => {
 
     await expect(page.getByText(/post published successfully/i)).toBeVisible({ timeout: 15_000 });
     await expect.poll(() => postCount(lgaId, title), { timeout: 10_000 }).toBe(1);
+
+    // The write path succeeding isn't enough — confirm the dashboard's own list
+    // re-fetch actually shows it (this regressed silently: posts/page.tsx read
+    // its lgaId from localStorage, which nothing ever wrote to, so the fetch
+    // guard `if (!lgaId) return` skipped every load and the spinner never
+    // resolved, even though publishing itself worked via the session cookie).
+    await expect(page.locator(".animate-spin")).toHaveCount(0, { timeout: 10_000 });
+    await expect(page.getByText(title)).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("a DRAFT post appears in the chairman's own list and updates the draft count", async ({ page, request }) => {
+    const { email, lgaId } = await seedVerifiedLGA(request, ipFor(7));
+    await loginAsChairman(page, email, "777888");
+
+    await page.goto("/lga-dashboard/posts", { waitUntil: "domcontentloaded" });
+    await expect(page.locator(".animate-spin")).toHaveCount(0, { timeout: 10_000 });
+
+    await page.getByRole("button", { name: /new post|create post/i }).first().click();
+    const title = `Draft briefing ${uniq()}`;
+    await page.fill("input[placeholder='Post title…']", title);
+    await page.fill("textarea[placeholder='Write your post content here…']", "A draft that should be visible only to its own LGA.");
+    await page.locator("label", { hasText: /^Draft$/i }).click();
+    await page.getByRole("button", { name: /publish post|save draft/i }).click();
+
+    await expect(page.getByText(/post published successfully|draft saved/i)).toBeVisible({ timeout: 15_000 });
+    await expect.poll(() => postCount(lgaId, title), { timeout: 10_000 }).toBe(1);
+
+    await expect(page.getByText(title)).toBeVisible({ timeout: 10_000 });
+    const draftStat = page.locator("p", { hasText: /^Draft$/ }).locator("..").locator("p").first();
+    await expect(draftStat).toHaveText(/[1-9]\d*/, { timeout: 10_000 });
   });
 
   test("chairman adds an endowment listing via the dashboard UI", async ({ page, request }) => {

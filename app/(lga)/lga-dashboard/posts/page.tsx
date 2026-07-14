@@ -31,11 +31,6 @@ interface Post {
   commentCount: number;
 }
 
-// Hardcoded for now — wire to real LGA session later
-const LGA_ID = typeof window !== "undefined"
-  ? (localStorage.getItem("lgaId") ?? "")
-  : "";
-
 export default function PostsPage() {
   const [posts,   setPosts]   = useState<Post[]>([]);
   const [total,   setTotal]   = useState(0);
@@ -47,8 +42,10 @@ export default function PostsPage() {
   const [lgaId,   setLgaId]   = useState("");
 
   useEffect(() => {
-    // Pick up lgaId from localStorage (set at login)
-    const id = localStorage.getItem("lgaId") ?? "";
+    // lgaId is written to sessionStorage at OTP verification (see verify-otp/page.tsx) —
+    // this page previously read from localStorage, which is never written anywhere,
+    // so fetchPosts always early-returned and the list/spinner never resolved.
+    const id = sessionStorage.getItem("lgaId") ?? "";
     setLgaId(id);
   }, []);
 
@@ -61,7 +58,12 @@ export default function PostsPage() {
   });
 
   const fetchPosts = useCallback(async () => {
-    if (!lgaId) return;
+    if (!lgaId) {
+      // Nothing to fetch yet — but don't leave the spinner running forever if
+      // the session id genuinely never resolves (e.g. sessionStorage cleared).
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const res  = await fetch(`/api/posts?lgaId=${lgaId}&limit=50`);
