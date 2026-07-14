@@ -169,6 +169,24 @@ test.describe("LGA portal — verifiable session", () => {
     expect((await res.json()).post.lgaId).toBe(lga.lgaId);
   });
 
+  test("a DRAFT post is visible to its own LGA dashboard but hidden from public visitors", async () => {
+    const create = await lga.ctx.post("/api/posts", {
+      data: { title: "Unpublished draft", content: "Not ready for citizens to see yet.", status: "DRAFT" },
+    });
+    expect(create.status()).toBe(201);
+
+    const ownerView = await lga.ctx.get(`/api/posts?lgaId=${lga.lgaId}&limit=50`);
+    expect(ownerView.status()).toBe(200);
+    const ownerBody = await ownerView.json();
+    expect(ownerBody.posts.some((p: { status: string }) => p.status === "DRAFT")).toBe(true);
+
+    const anon = await apiRequest.newContext({ baseURL: BASE });
+    const publicView = await anon.get(`/api/posts?lgaId=${lga.lgaId}&limit=50`);
+    expect(publicView.status()).toBe(200);
+    const publicBody = await publicView.json();
+    expect(publicBody.posts.some((p: { status: string }) => p.status === "DRAFT")).toBe(false);
+  });
+
   test("logout clears the cookie and re-gates the dashboard", async () => {
     const fresh = await authedLGA(ipFor(2));
     expect((await fresh.ctx.get("/api/lga-dashboard/overview")).status()).toBe(200);
