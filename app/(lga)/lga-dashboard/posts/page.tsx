@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Plus, Pencil, Trash2, X, AlertCircle, CheckCircle2,
   FileText, Eye, Archive, ThumbsUp, MessageCircle, Loader2,
-  Image as ImageIcon, Send,
+  Image as ImageIcon, Send, Star, UserCircle2,
 } from "lucide-react";
 
 const schema = z.object({
@@ -31,6 +31,26 @@ interface Post {
   commentCount: number;
 }
 
+interface CommentReply {
+  id:        string;
+  content:   string;
+  createdAt: string;
+  user:      { name: string; image: string | null };
+}
+
+interface CommentItem extends CommentReply {
+  replies: CommentReply[];
+}
+
+interface FeedbackItem {
+  id:        string;
+  rating:    number;
+  category:  string;
+  message:   string;
+  createdAt: string;
+  user:      { name: string; image: string | null };
+}
+
 export default function PostsPage() {
   const [posts,   setPosts]   = useState<Post[]>([]);
   const [total,   setTotal]   = useState(0);
@@ -40,6 +60,13 @@ export default function PostsPage() {
   const [deleting,setDeleting]= useState<string | null>(null);
   const [toast,   setToast]   = useState<{ type: "success" | "error"; msg: string } | null>(null);
   const [lgaId,   setLgaId]   = useState("");
+
+  // Engagement modal — read-only view of citizen comments + feedback on a post.
+  const [viewing,          setViewing]          = useState<Post | null>(null);
+  const [engagementTab,    setEngagementTab]    = useState<"comments" | "feedback">("comments");
+  const [comments,         setComments]         = useState<CommentItem[]>([]);
+  const [feedback,         setFeedback]         = useState<FeedbackItem[]>([]);
+  const [engagementLoading,setEngagementLoading]= useState(false);
 
   useEffect(() => {
     // lgaId is written to sessionStorage at OTP verification (see verify-otp/page.tsx) —
@@ -99,6 +126,36 @@ export default function PostsPage() {
     });
     setEditing(post);
     setModal("edit");
+  }
+
+  async function openEngagement(post: Post) {
+    setViewing(post);
+    setEngagementTab("comments");
+    setEngagementLoading(true);
+    try {
+      const [commentsRes, feedbackRes] = await Promise.all([
+        fetch(`/api/comments?contentId=${post.id}&contentType=post`),
+        fetch(`/api/lga-dashboard/feedback?postId=${post.id}`),
+      ]);
+      const commentsData = await commentsRes.json();
+      const feedbackData = await feedbackRes.json();
+      setComments(commentsData.comments ?? []);
+      setFeedback(feedbackData.feedback ?? []);
+    } catch {
+      showToast("error", "Failed to load engagement.");
+    } finally {
+      setEngagementLoading(false);
+    }
+  }
+
+  function timeAgo(dateStr: string) {
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1)  return "just now";
+    if (mins < 60) return `${mins}m ago`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24)  return `${hrs}h ago`;
+    return `${Math.floor(hrs / 24)}d ago`;
   }
 
   async function onSubmit(data: FormValues) {
@@ -308,14 +365,24 @@ export default function PostsPage() {
                   <span className="flex items-center gap-1 text-xs text-slate-400">
                     <ThumbsUp className="h-3 w-3" /> {post.likes}
                   </span>
-                  <span className="flex items-center gap-1 text-xs text-slate-400">
+                  <button
+                    onClick={() => openEngagement(post)}
+                    className="flex items-center gap-1 text-xs text-slate-400 hover:text-green-700 transition-colors"
+                  >
                     <MessageCircle className="h-3 w-3" /> {post.commentCount}
-                  </span>
+                    {post.commentCount > 0 && <span className="underline">view</span>}
+                  </button>
                   {post.imageUrl && (
                     <span className="flex items-center gap-1 text-xs text-slate-400">
                       <ImageIcon className="h-3 w-3" /> Image attached
                     </span>
                   )}
+                  <button
+                    onClick={() => openEngagement(post)}
+                    className="flex items-center gap-1 text-xs text-slate-400 hover:text-green-700 transition-colors ml-auto"
+                  >
+                    <Star className="h-3 w-3" /> Feedback
+                  </button>
                 </div>
               </div>
             </div>
@@ -457,6 +524,146 @@ export default function PostsPage() {
                     </button>
                   </div>
                 </form>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Engagement Modal (comments + feedback, read-only) ── */}
+      <AnimatePresence>
+        {viewing && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/40 z-50"
+              onClick={() => setViewing(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              transition={{ duration: 0.2 }}
+              className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-lg mx-4"
+            >
+              <div className="bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[85vh] flex flex-col">
+                {/* Header */}
+                <div className="px-6 py-4 border-b border-slate-100">
+                  <div className="flex items-center justify-between">
+                    <h2 className="font-bold text-slate-900 truncate pr-4">{viewing.title}</h2>
+                    <button onClick={() => setViewing(null)} className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors shrink-0">
+                      <X className="h-4 w-4 text-slate-500" />
+                    </button>
+                  </div>
+                  {/* Tabs */}
+                  <div className="flex gap-1 mt-3">
+                    <button
+                      onClick={() => setEngagementTab("comments")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                        engagementTab === "comments" ? "bg-green-100 text-green-700" : "text-slate-500 hover:bg-slate-100"
+                      }`}
+                    >
+                      Comments ({comments.length})
+                    </button>
+                    <button
+                      onClick={() => setEngagementTab("feedback")}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                        engagementTab === "feedback" ? "bg-green-100 text-green-700" : "text-slate-500 hover:bg-slate-100"
+                      }`}
+                    >
+                      Feedback ({feedback.length})
+                    </button>
+                  </div>
+                </div>
+
+                {/* Body */}
+                <div className="px-6 py-4 overflow-y-auto flex-1">
+                  {engagementLoading ? (
+                    <div className="flex items-center justify-center py-16">
+                      <Loader2 className="h-5 w-5 animate-spin text-slate-300" />
+                    </div>
+                  ) : engagementTab === "comments" ? (
+                    comments.length === 0 ? (
+                      <div className="text-center py-16">
+                        <MessageCircle className="h-8 w-8 text-slate-200 mx-auto mb-2" />
+                        <p className="text-sm text-slate-400">No comments yet</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {comments.map((c) => (
+                          <div key={c.id}>
+                            <div className="flex gap-2.5">
+                              <div className="h-8 w-8 rounded-full bg-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
+                                {c.user.image
+                                  ? // eslint-disable-next-line @next/next/no-img-element
+                                    <img src={c.user.image} alt="" className="h-full w-full object-cover" />
+                                  : <UserCircle2 className="h-5 w-5 text-slate-400" />
+                                }
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-baseline gap-2">
+                                  <span className="text-sm font-semibold text-slate-800">{c.user.name}</span>
+                                  <span className="text-[11px] text-slate-400">{timeAgo(c.createdAt)}</span>
+                                </div>
+                                <p className="text-sm text-slate-600 mt-0.5 leading-relaxed">{c.content}</p>
+                              </div>
+                            </div>
+                            {c.replies?.length > 0 && (
+                              <div className="ml-10 mt-2 space-y-2 border-l-2 border-slate-100 pl-3">
+                                {c.replies.map((r) => (
+                                  <div key={r.id} className="flex gap-2">
+                                    <div className="h-6 w-6 rounded-full bg-slate-100 flex items-center justify-center shrink-0 overflow-hidden">
+                                      {r.user.image
+                                        ? // eslint-disable-next-line @next/next/no-img-element
+                                          <img src={r.user.image} alt="" className="h-full w-full object-cover" />
+                                        : <UserCircle2 className="h-4 w-4 text-slate-400" />
+                                      }
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-baseline gap-2">
+                                        <span className="text-xs font-semibold text-slate-800">{r.user.name}</span>
+                                        <span className="text-[10px] text-slate-400">{timeAgo(r.createdAt)}</span>
+                                      </div>
+                                      <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">{r.content}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  ) : feedback.length === 0 ? (
+                    <div className="text-center py-16">
+                      <Star className="h-8 w-8 text-slate-200 mx-auto mb-2" />
+                      <p className="text-sm text-slate-400">No feedback yet</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {feedback.map((f) => (
+                        <div key={f.id} className="p-3 rounded-xl bg-slate-50">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-sm font-semibold text-slate-800">{f.user.name}</span>
+                            <span className="text-[11px] text-slate-400">{timeAgo(f.createdAt)}</span>
+                          </div>
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <div className="flex items-center">
+                              {[1, 2, 3, 4, 5].map((n) => (
+                                <Star
+                                  key={n}
+                                  className={`h-3.5 w-3.5 ${n <= f.rating ? "text-yellow-400 fill-yellow-400" : "text-slate-200"}`}
+                                />
+                              ))}
+                            </div>
+                            <span className="text-[11px] text-slate-500">{f.category}</span>
+                          </div>
+                          <p className="text-sm text-slate-600 leading-relaxed">{f.message}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
             </motion.div>
           </>

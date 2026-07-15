@@ -11,7 +11,7 @@
  * Run with:  npx playwright test --project=chromium lga-dashboard-browser
  */
 
-import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
+import { test, expect, request as apiRequest, type APIRequestContext, type Page } from "@playwright/test";
 import { Pool } from "pg";
 import { config } from "dotenv";
 
@@ -74,6 +74,69 @@ async function pressReleaseCount(lgaId: string, title: string): Promise<number> 
     [lgaId, title]
   );
   return rows[0]?.n ?? 0;
+}
+
+async function postIdByTitle(lgaId: string, title: string): Promise<string> {
+  const { rows } = await pool.query(
+    `SELECT id FROM posts WHERE "lgaId" = $1 AND title = $2 LIMIT 1`,
+    [lgaId, title]
+  );
+  return rows[0]?.id ?? "";
+}
+
+async function citizenToken(email: string): Promise<string> {
+  const { rows } = await pool.query(
+    `SELECT vt.token FROM verification_tokens vt
+       JOIN users u ON u.id = vt."userId"
+      WHERE u.email = $1 ORDER BY vt."createdAt" DESC LIMIT 1`,
+    [email]
+  );
+  return rows[0]?.token ?? "";
+}
+
+/**
+ * Register + verify + sign in a citizen over the API, then have them comment
+ * on and submit feedback for the given post. Returns the identifying strings
+ * so the caller can assert their exact content shows up on the chairman's
+ * dashboard.
+ */
+async function citizenEngages(
+  ip: string,
+  postId: string,
+): Promise<{ name: string; commentContent: string; feedbackMessage: string; feedbackCategory: string }> {
+  const suffix = uniq();
+  const email = `citizen_${suffix}@example.com`;
+  const name = `Concerned Citizen ${suffix}`;
+  const ctx = await apiRequest.newContext({ baseURL: "http://localhost:3000", extraHTTPHeaders: { "x-forwarded-for": ip } });
+
+  const reg = await ctx.post("/api/auth/register", {
+    data: { name, email, state: "Lagos", lga: "Ikeja", password: PASSWORD, confirmPassword: PASSWORD, terms: true },
+  });
+  expect(reg.status(), "seed: citizen register").toBe(201);
+
+  const ver = await ctx.post("/api/auth/verify-email", { data: { token: await citizenToken(email) } });
+  expect(ver.status(), "seed: citizen verify").toBe(200);
+
+  const { csrfToken } = await (await ctx.get("/api/auth/csrf")).json();
+  await ctx.post("/api/auth/callback/credentials", {
+    form: { csrfToken, email, password: PASSWORD, redirect: "false", callbackUrl: "http://localhost:3000" },
+  });
+
+  const commentContent = `Great to see this progress, from ${name}!`;
+  const commentRes = await ctx.post("/api/comments", {
+    data: { contentId: postId, contentType: "post", content: commentContent },
+  });
+  expect(commentRes.status(), "seed: citizen comment").toBe(201);
+
+  const feedbackMessage = `Really appreciated this update — from ${name}.`;
+  const feedbackCategory = "Service Delivery";
+  const feedbackRes = await ctx.post("/api/feedback", {
+    data: { postId, rating: 4, category: feedbackCategory, message: feedbackMessage },
+  });
+  expect(feedbackRes.status(), "seed: citizen feedback").toBe(201);
+
+  await ctx.dispose();
+  return { name, commentContent, feedbackMessage, feedbackCategory };
 }
 
 /** Register + verify an LGA over the API; returns the chairman email + lgaId. */
@@ -227,6 +290,44 @@ test.describe("LGA chairman dashboard journey — browser", () => {
 
     await expect(page.getByText(/press release submitted for admin review/i)).toBeVisible({ timeout: 15_000 });
     await expect.poll(() => pressReleaseCount(lgaId, prTitle), { timeout: 10_000 }).toBe(1);
+  });
+
+  test("chairman can read a citizen's comment and feedback via the engagement modal", async ({ page, request }) => {
+    const { email, lgaId } = await seedVerifiedLGA(request, ipFor(6));
+    await loginAsChairman(page, email, "666777");
+
+    await page.goto("/lga-dashboard/posts", { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: /new post|create post/i }).first().click();
+
+    const title = `Engagement briefing ${uniq()}`;
+    await page.fill("input[placeholder='Post title…']", title);
+    await page.fill("textarea[placeholder='Write your post content here…']", "A post used to verify the chairman can read citizen comments and feedback.");
+    await page.getByRole("button", { name: /publish post/i }).click();
+    await expect(page.getByText(/post published successfully/i)).toBeVisible({ timeout: 15_000 });
+    await expect(page.locator(".animate-spin")).toHaveCount(0, { timeout: 10_000 });
+
+    const postId = await postIdByTitle(lgaId, title);
+    expect(postId, "seed: created post id").toBeTruthy();
+
+    // A citizen comments on and submits feedback for the post — the bug report
+    // was that neither was ever readable from the chairman's dashboard, only
+    // a bare comment count.
+    const engagement = await citizenEngages(ipFor(8), postId);
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await expect(page.locator(".animate-spin")).toHaveCount(0, { timeout: 10_000 });
+
+    // This is the LGA's only post, so the single "view" button unambiguously
+    // belongs to it — the same click path an LGA chairman uses in production.
+    await page.locator('button:has-text("view")').first().click();
+
+    await expect(page.getByText(/^Comments \(/)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(engagement.commentContent)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(engagement.name).first()).toBeVisible();
+
+    await page.getByText(/^Feedback \(/).click();
+    await expect(page.getByText(engagement.feedbackMessage)).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(engagement.feedbackCategory)).toBeVisible();
   });
 
   test("chairman signs out and is redirected to lga-login", async ({ page, request }) => {
