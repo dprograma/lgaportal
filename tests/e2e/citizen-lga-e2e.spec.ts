@@ -339,4 +339,32 @@ test.describe("Citizen ↔ LGA portal — engagement", () => {
     const res = await ctx.get("/api/lga-dashboard/posts");
     expect(res.status()).toBe(401);
   });
+
+  // ── Loop closure: the chairman can actually READ the feedback content ────
+  // (Previously there was no GET endpoint at all for a chairman to read
+  // citizen feedback on their own posts — only the citizen-facing POST
+  // existed, so submitted feedback was invisible to the LGA.)
+  test("reading feedback with no LGA session → 401", async () => {
+    const ctx = await apiRequest.newContext({ baseURL: BASE });
+    const res = await ctx.get(`/api/lga-dashboard/feedback?postId=${postId}`);
+    expect(res.status()).toBe(401);
+  });
+
+  test("the chairman can read the citizen's feedback message, rating, and category", async () => {
+    const res = await lgaCtx.get(`/api/lga-dashboard/feedback?postId=${postId}`);
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.total).toBeGreaterThanOrEqual(1);
+    const mine = body.feedback.find((f: { message: string }) => f.message.includes("improved commuting"));
+    expect(mine, "the citizen's feedback is visible to the chairman").toBeTruthy();
+    expect(mine.rating).toBe(5);
+    expect(mine.category).toBe("Infrastructure");
+    expect(mine.postId).toBe(postId);
+  });
+
+  test("a chairman cannot read feedback for a post they don't own", async () => {
+    const otherLga = await authedLGA(ipFor(9));
+    const res = await otherLga.ctx.get(`/api/lga-dashboard/feedback?postId=${postId}`);
+    expect(res.status()).toBe(404);
+  });
 });
