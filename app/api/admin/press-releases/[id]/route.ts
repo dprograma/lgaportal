@@ -2,6 +2,7 @@
 import { db } from "@/lib/db";
 import { PressStatus } from "@prisma/client";
 import { isAdminRequest } from "@/lib/admin-auth";
+import { sendPressReleaseApprovedNotification, sendPressReleaseRejectedNotification } from "@/lib/email";
 
 
 export async function PATCH(
@@ -31,6 +32,29 @@ export async function PATCH(
   }
 
   const release = await db.pressRelease.update({ where: { id }, data });
+
+  // Notify the submitting chairman of the outcome — this was previously a
+  // silent status flip with no signal back to the LGA dashboard beyond the
+  // rejectedReason banner, so chairmen had no way to know a submission had
+  // even been reviewed.
+  if ((body.action === "publish" || body.action === "reject") && release.submittedByRole === "LGA_CHAIRMAN" && release.lgaId) {
+    const lga = await db.lGA.findUnique({
+      where: { id: release.lgaId },
+      select: { email: true, chairmanName: true, lgaName: true },
+    });
+    if (lga) {
+      try {
+        if (body.action === "publish") {
+          await sendPressReleaseApprovedNotification(lga.email, lga.chairmanName, lga.lgaName, release.title);
+        } else {
+          await sendPressReleaseRejectedNotification(lga.email, lga.chairmanName, lga.lgaName, release.title, release.rejectedReason);
+        }
+      } catch (err) {
+        console.error(`[press-release] notification failed for ${lga.email}:`, err);
+      }
+    }
+  }
+
   return NextResponse.json({ release });
 }
 

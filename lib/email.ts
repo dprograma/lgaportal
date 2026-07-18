@@ -654,3 +654,84 @@ export async function sendInquiryNotificationToLGA(
     throw new Error(`Failed to send inquiry notification: ${error.message}`);
   }
 }
+
+// ─── Press releases: approval / rejection ─────────────────────────────────
+
+export async function sendPressReleaseApprovedNotification(
+  email: string,
+  chairmanName: string,
+  lgaName: string,
+  title: string
+): Promise<void> {
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 8px;color:#0f172a;font-size:24px;font-weight:700;">Press Release Published</h2>
+    <p style="margin:0 0 20px;color:#475569;font-size:15px;line-height:1.6;">
+      Dear <strong>${chairmanName}</strong>, your press release submitted on behalf of
+      <strong>${lgaName} LGA</strong> has been reviewed and published.
+    </p>
+    <div style="margin:0 0 24px;padding:20px;background:#f0fdf4;border-radius:10px;border-left:4px solid #16a34a;">
+      <p style="margin:0 0 6px;color:#15803d;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Headline</p>
+      <p style="margin:0;color:#0f172a;font-size:14px;line-height:1.6;">${title}</p>
+    </div>
+    <div style="text-align:center;margin:28px 0;">
+      <a href="${appUrl}/lga-dashboard/press-releases"
+         style="background:linear-gradient(135deg,#15803d,#16a34a);color:#ffffff;text-decoration:none;
+                padding:14px 32px;border-radius:10px;font-size:15px;font-weight:600;display:inline-block;">
+        View in Dashboard
+      </a>
+    </div>
+  `);
+
+  const { error } = await resend.emails.send({
+    from,
+    to: email,
+    subject: `Your press release has been published — ${lgaName} LGA`,
+    html,
+  });
+
+  if (error) {
+    throw new Error(`Failed to send press release approval notification: ${error.message}`);
+  }
+}
+
+export async function sendPressReleaseRejectedNotification(
+  email: string,
+  chairmanName: string,
+  lgaName: string,
+  title: string,
+  reason: string | null
+): Promise<void> {
+  const html = baseTemplate(`
+    <h2 style="margin:0 0 8px;color:#0f172a;font-size:24px;font-weight:700;">Press Release Rejected</h2>
+    <p style="margin:0 0 20px;color:#475569;font-size:15px;line-height:1.6;">
+      Dear <strong>${chairmanName}</strong>, your press release submitted on behalf of
+      <strong>${lgaName} LGA</strong> was not approved for publication.
+    </p>
+    <div style="margin:0 0 24px;padding:20px;background:#fef2f2;border-radius:10px;border-left:4px solid #ef4444;">
+      <p style="margin:0 0 6px;color:#b91c1c;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Headline</p>
+      <p style="margin:0 0 12px;color:#0f172a;font-size:14px;line-height:1.6;">${title}</p>
+      ${reason ? `
+      <p style="margin:0 0 6px;color:#b91c1c;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Reason</p>
+      <p style="margin:0;color:#0f172a;font-size:14px;line-height:1.6;">${reason}</p>
+      ` : ""}
+    </div>
+    <div style="text-align:center;margin:28px 0;">
+      <a href="${appUrl}/lga-dashboard/press-releases"
+         style="background:linear-gradient(135deg,#15803d,#16a34a);color:#ffffff;text-decoration:none;
+                padding:14px 32px;border-radius:10px;font-size:15px;font-weight:600;display:inline-block;">
+        View in Dashboard
+      </a>
+    </div>
+  `);
+
+  const { error } = await resend.emails.send({
+    from,
+    to: email,
+    subject: `Your press release was not approved — ${lgaName} LGA`,
+    html,
+  });
+
+  if (error) {
+    throw new Error(`Failed to send press release rejection notification: ${error.message}`);
+  }
+}
