@@ -41,18 +41,10 @@ export default function LGAPaymentsPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [downloading, setDownloading] = useState<string | null>(null);
 
-  // Subscription info — would typically come from LGA session context
-  const [lgaId, setLgaId] = useState<string | null>(null);
-
-  useEffect(() => {
-    // Get LGA session info
-    fetch("/api/lga/me")
-      .then((r) => r.json())
-      .then((d) => {
-        if (d.lga?.id) setLgaId(d.lga.id);
-      })
-      .catch(() => {});
-  }, []);
+  // Subscription info — the lgaId is stashed in sessionStorage at OTP login,
+  // the same way every other LGA dashboard page reads it (there is no
+  // /api/lga/me endpoint).
+  const lgaId = typeof window !== "undefined" ? sessionStorage.getItem("lgaId") : null;
 
   useEffect(() => {
     if (!lgaId) return;
@@ -97,8 +89,11 @@ export default function LGAPaymentsPage() {
   }
 
   function handleRenew() {
-    // Navigate to renewal/subscription page
-    window.location.href = "/lga-dashboard/subscription";
+    // TODO: wire up to POST /api/paystack/initialize once LGA subscription
+    // pricing is configured. Previously this pointed at a
+    // /lga-dashboard/subscription route that was never built, so every click
+    // 404'd.
+    toast.error("Subscription payments aren't available yet. Please contact support.");
   }
 
   const latestSuccessful = transactions.find((t) => t.status === "SUCCESS");
