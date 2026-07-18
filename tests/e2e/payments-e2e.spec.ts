@@ -58,7 +58,7 @@ async function otpCode(identifier: string, purpose: string): Promise<string> {
 }
 
 /** Register + verify + OTP-login an LGA chairman; returns an authed ctx + lgaId. */
-async function authedLGA(ip: string): Promise<{ ctx: APIRequestContext; lgaId: string }> {
+async function authedLGA(ip: string): Promise<{ ctx: APIRequestContext; lgaId: string; email: string }> {
   const suffix = uniq();
   const email = `chairman_pay_${suffix}@example.com`;
   const c = await apiRequest.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": ip } });
@@ -85,7 +85,7 @@ async function authedLGA(ip: string): Promise<{ ctx: APIRequestContext; lgaId: s
   });
   expect(verify.status(), "seed: OTP verify → session cookie").toBe(200);
 
-  return { ctx: c, lgaId };
+  return { ctx: c, lgaId, email };
 }
 
 // ─── Paystack webhook — signature verification (sandbox-only) ─────────────────
@@ -207,6 +207,113 @@ test.describe("GET /api/transactions", () => {
     const { ctx: attackerCtx } = await authedLGA(ipFor(4));
     const res = await attackerCtx.get(`/api/transactions?type=lga&lgaId=${victimLgaId}`);
     expect(res.status()).toBe(401);
+  });
+});
+
+// ─── LGA subscription renewal ────────────────────────────────────────────────
+// Previously "Renew Subscription" / "Renew Now" pointed at a
+// /lga-dashboard/subscription route that was never built, so every click
+// 404'd — there was no pricing configured anywhere either. Both are now
+// backed by this route, priced from LGA_SUBSCRIPTION_FEE_NAIRA /
+// LGA_SUBSCRIPTION_DURATION_DAYS (see .env.example).
+
+test.describe("LGA subscription renewal", () => {
+  test("GET without any session → 401", async () => {
+    const c = await ctx();
+    expect((await c.get("/api/lga-dashboard/subscription/renew")).status()).toBe(401);
+  });
+
+  test("GET with a chairman session → 200 with the configured fee and cycle", async () => {
+    const { ctx: lgaCtx } = await authedLGA(ipFor(5));
+    const res = await lgaCtx.get("/api/lga-dashboard/subscription/renew");
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.amountNaira).toBe(Number(process.env.LGA_SUBSCRIPTION_FEE_NAIRA ?? "30000"));
+    expect(body.durationDays).toBe(Number(process.env.LGA_SUBSCRIPTION_DURATION_DAYS ?? "30"));
+  });
+
+  test("POST without any session → 401", async () => {
+    const c = await ctx();
+    expect((await c.post("/api/lga-dashboard/subscription/renew")).status()).toBe(401);
+  });
+
+  test("POST creates a correctly-priced PENDING transaction pinned to the chairman's own LGA", async () => {
+    const { ctx: lgaCtx, lgaId } = await authedLGA(ipFor(6));
+    const res = await lgaCtx.post("/api/lga-dashboard/subscription/renew");
+    // The sandbox PAYSTACK_SECRET_KEY is a dummy value in this test environment,
+    // so the real Paystack call always fails (500) — the point of this test is
+    // that OUR transaction bookkeeping is correct before that external call,
+    // not that a live Paystack checkout was produced.
+    expect([200, 500]).toContain(res.status());
+
+    const { rows } = await pool.query(
+      `SELECT purpose, amount, status, "lgaId", metadata FROM transactions WHERE "lgaId" = $1 ORDER BY "createdAt" DESC LIMIT 1`,
+      [lgaId]
+    );
+    expect(rows[0].purpose).toBe("LGA_SUBSCRIPTION");
+    expect(rows[0].lgaId).toBe(lgaId);
+    expect(rows[0].status).toBe("PENDING");
+    expect(Number(rows[0].amount)).toBe(Number(process.env.LGA_SUBSCRIPTION_FEE_NAIRA ?? "30000") * 100);
+    expect(rows[0].metadata.planDurationDays).toBe(Number(process.env.LGA_SUBSCRIPTION_DURATION_DAYS ?? "30"));
+  });
+});
+
+// ─── /api/paystack/verify — LGA-owned transactions ───────────────────────────
+
+test.describe("GET /api/paystack/verify — LGA ownership", () => {
+  test("without any session (no reference either) → 401", async () => {
+    const c = await ctx();
+    expect((await c.get("/api/paystack/verify")).status()).toBe(401);
+  });
+
+  test("a chairman with a valid session but missing reference → 400", async () => {
+    const { ctx: lgaCtx } = await authedLGA(ipFor(7));
+    expect((await lgaCtx.get("/api/paystack/verify")).status()).toBe(400);
+  });
+
+  test("a chairman can verify a reference belonging to their own LGA (not 401)", async () => {
+    const { ctx: lgaCtx } = await authedLGA(ipFor(8));
+    await lgaCtx.post("/api/lga-dashboard/subscription/renew");
+    const { rows } = await pool.query(
+      `SELECT "paystackRef" FROM transactions WHERE "lgaId" IS NOT NULL ORDER BY "createdAt" DESC LIMIT 1`
+    );
+    const res = await lgaCtx.get(`/api/paystack/verify?reference=${rows[0].paystackRef}`);
+    expect(res.status()).not.toBe(401);
+  });
+
+  test("a different chairman cannot verify someone else's LGA transaction → 401", async () => {
+    const { ctx: ownerCtx } = await authedLGA(ipFor(9));
+    await ownerCtx.post("/api/lga-dashboard/subscription/renew");
+    const { rows } = await pool.query(
+      `SELECT "paystackRef" FROM transactions WHERE "lgaId" IS NOT NULL ORDER BY "createdAt" DESC LIMIT 1`
+    );
+    const { ctx: attackerCtx } = await authedLGA(ipFor(10));
+    const res = await attackerCtx.get(`/api/paystack/verify?reference=${rows[0].paystackRef}`);
+    expect(res.status()).toBe(401);
+  });
+});
+
+// ─── Upload signature (Cloudinary direct upload) ─────────────────────────────
+
+test.describe("POST /api/lga-dashboard/uploads/signature", () => {
+  test("without any session → 401", async () => {
+    const c = await ctx();
+    const res = await c.post("/api/lga-dashboard/uploads/signature", { data: { folder: "projects" } });
+    expect(res.status()).toBe(401);
+  });
+
+  test("an invalid folder → 400", async () => {
+    const { ctx: lgaCtx } = await authedLGA(ipFor(11));
+    const res = await lgaCtx.post("/api/lga-dashboard/uploads/signature", { data: { folder: "../etc" } });
+    expect(res.status()).toBe(400);
+  });
+
+  test("a valid folder with Cloudinary unconfigured → 503 with a clear message", async () => {
+    test.skip(!!process.env.CLOUDINARY_CLOUD_NAME, "Cloudinary is configured in this environment");
+    const { ctx: lgaCtx } = await authedLGA(ipFor(12));
+    const res = await lgaCtx.post("/api/lga-dashboard/uploads/signature", { data: { folder: "projects" } });
+    expect(res.status()).toBe(503);
+    expect((await res.json()).error).toMatch(/not configured/i);
   });
 });
 

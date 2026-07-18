@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { ChevronLeft, AlertCircle, MapPin, Upload, X, Plus } from "lucide-react";
+import UploadButton from "@/components/lga-dashboard/UploadButton";
 
 const RichTextEditor = dynamic(() => import("@/components/ui/RichTextEditor"), { ssr: false });
 
@@ -236,7 +237,7 @@ export default function NewProjectPage() {
         {/* Images */}
         <div>
           <label className="text-sm font-medium text-slate-700 flex items-center gap-1.5 mb-1.5">
-            <Upload className="h-3.5 w-3.5 text-slate-400" /> Image URLs
+            <Upload className="h-3.5 w-3.5 text-slate-400" /> Images
             <span className="text-xs font-normal text-slate-400">(optional)</span>
           </label>
           <div className="flex gap-2 mb-2">
@@ -255,6 +256,13 @@ export default function NewProjectPage() {
             >
               <Plus className="h-3.5 w-3.5" /> Add
             </button>
+            <UploadButton
+              folder="projects"
+              accept="image/*"
+              label="Upload"
+              onUploaded={(url) => setImages(p => [...p, url])}
+              onError={setError}
+            />
           </div>
           {images.length > 0 && (
             <div className="flex flex-wrap gap-2">
@@ -274,16 +282,25 @@ export default function NewProjectPage() {
           )}
         </div>
 
-        {/* Video URL */}
+        {/* Video */}
         <div>
-          <label className="text-sm font-medium text-slate-700 block mb-1.5">Video URL <span className="text-xs font-normal text-slate-400">(optional)</span></label>
-          <input
-            type="url"
-            value={form.videoUrl}
-            onChange={e => set("videoUrl", e.target.value)}
-            placeholder="https://youtube.com/watch?v=…"
-            className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 outline-none focus:ring-2 focus:ring-green-500"
-          />
+          <label className="text-sm font-medium text-slate-700 block mb-1.5">Video <span className="text-xs font-normal text-slate-400">(optional)</span></label>
+          <div className="flex gap-2">
+            <input
+              type="url"
+              value={form.videoUrl}
+              onChange={e => set("videoUrl", e.target.value)}
+              placeholder="https://youtube.com/watch?v=… or upload a file"
+              className="flex-1 px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-800 outline-none focus:ring-2 focus:ring-green-500"
+            />
+            <UploadButton
+              folder="projects"
+              accept="video/*"
+              label="Upload"
+              onUploaded={(url) => set("videoUrl", url)}
+              onError={setError}
+            />
+          </div>
         </div>
 
         {/* Publish toggle */}

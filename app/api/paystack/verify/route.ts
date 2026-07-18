@@ -2,10 +2,15 @@ import { NextRequest } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
 import { verifyTransaction } from "@/lib/paystack";
+import { getLgaSession } from "@/lib/lga-auth";
 
 export async function GET(req: NextRequest) {
+  // Owned either by the paying citizen (NextAuth session) or by the LGA it
+  // was billed to (lga_session cookie) — an LGA chairman has no citizen
+  // session at all, so this must accept either.
   const session = await auth();
-  if (!session?.user?.id) {
+  const lgaSession = await getLgaSession(req);
+  if (!session?.user?.id && !lgaSession) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -21,6 +26,12 @@ export async function GET(req: NextRequest) {
 
     if (!transaction) {
       return Response.json({ error: "Transaction not found" }, { status: 404 });
+    }
+
+    const ownsAsUser = session?.user?.id && transaction.userId === session.user.id;
+    const ownsAsLga  = lgaSession && transaction.lgaId === lgaSession.lgaId;
+    if (!ownsAsUser && !ownsAsLga) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     // If already settled, return DB status

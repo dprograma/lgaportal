@@ -34,12 +34,20 @@ function formatNaira(kobo: string | number) {
   );
 }
 
+function cycleLabel(durationDays: number): string {
+  if (durationDays >= 360) return "/yr";
+  if (durationDays >= 28 && durationDays <= 31) return "/mo";
+  return `/${durationDays}d`;
+}
+
 export default function LGAPaymentsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [renewing, setRenewing] = useState(false);
+  const [feeInfo, setFeeInfo] = useState<{ amountNaira: number; durationDays: number } | null>(null);
 
   // Subscription info — the lgaId is stashed in sessionStorage at OTP login,
   // the same way every other LGA dashboard page reads it (there is no
@@ -51,6 +59,14 @@ export default function LGAPaymentsPage() {
     fetchTransactions(page);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lgaId, page]);
+
+  useEffect(() => {
+    if (!lgaId) return;
+    fetch("/api/lga-dashboard/subscription/renew")
+      .then((r) => r.json())
+      .then((d) => { if (d.amountNaira) setFeeInfo(d); })
+      .catch(() => {});
+  }, [lgaId]);
 
   function fetchTransactions(p: number) {
     setLoading(true);
@@ -88,12 +104,18 @@ export default function LGAPaymentsPage() {
     }
   }
 
-  function handleRenew() {
-    // TODO: wire up to POST /api/paystack/initialize once LGA subscription
-    // pricing is configured. Previously this pointed at a
-    // /lga-dashboard/subscription route that was never built, so every click
-    // 404'd.
-    toast.error("Subscription payments aren't available yet. Please contact support.");
+  async function handleRenew() {
+    setRenewing(true);
+    try {
+      const res = await fetch("/api/lga-dashboard/subscription/renew", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error ?? "Failed to start payment."); return; }
+      window.location.href = data.authorization_url;
+    } catch {
+      toast.error("Failed to start payment.");
+    } finally {
+      setRenewing(false);
+    }
   }
 
   const latestSuccessful = transactions.find((t) => t.status === "SUCCESS");
@@ -108,10 +130,11 @@ export default function LGAPaymentsPage() {
         </div>
         <button
           onClick={handleRenew}
-          className="flex items-center gap-2 bg-green-700 text-white font-semibold px-4 py-2.5 rounded-xl hover:bg-green-800 transition-colors text-sm"
+          disabled={renewing}
+          className="flex items-center gap-2 bg-green-700 text-white font-semibold px-4 py-2.5 rounded-xl hover:bg-green-800 transition-colors text-sm disabled:opacity-50"
         >
-          <RefreshCw className="h-4 w-4" />
-          Renew Subscription
+          {renewing ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+          {renewing ? "Redirecting…" : feeInfo ? `Renew Subscription (₦${feeInfo.amountNaira.toLocaleString("en-NG")}${cycleLabel(feeInfo.durationDays)})` : "Renew Subscription"}
         </button>
       </div>
 
@@ -152,9 +175,10 @@ export default function LGAPaymentsPage() {
           <div className="mt-4">
             <button
               onClick={handleRenew}
-              className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors"
+              disabled={renewing}
+              className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors disabled:opacity-50"
             >
-              <Clock className="h-4 w-4" />
+              {renewing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clock className="h-4 w-4" />}
               Renew Now
             </button>
           </div>
