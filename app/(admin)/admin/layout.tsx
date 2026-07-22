@@ -3,11 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, Building2, Clock, ShieldCheck, LogOut, BarChart2, ShieldAlert, Megaphone, DollarSign, Users, Activity, FileText, ClipboardList, Newspaper, Radio, Loader2 } from "lucide-react";
+import { LayoutDashboard, Building2, Clock, ShieldCheck, LogOut, BarChart2, ShieldAlert, Megaphone, DollarSign, Users, Activity, FileText, ClipboardList, Newspaper, Radio, Loader2, MapPin } from "lucide-react";
 
 const navItems = [
   { href: "/admin",                label: "Overview",        icon: LayoutDashboard },
   { href: "/admin/lgas",           label: "LGA Approvals",   icon: Building2       },
+  { href: "/admin/wards",          label: "Wards",           icon: MapPin          },
   { href: "/admin/users",          label: "Users",           icon: Users           },
   { href: "/admin/analytics",      label: "Analytics",       icon: Activity        },
   { href: "/admin/expiring",       label: "Expiring Trials", icon: Clock           },
