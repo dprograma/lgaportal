@@ -182,6 +182,49 @@ test.describe("Chairman CRUD — press releases", () => {
     expect(Array.isArray(body.releases)).toBe(true);
     expect(body.releases.some((r: { title: string }) => r.title.includes("water scheme"))).toBe(true);
   });
+
+  // ── Admin review closes the loop back to the chairman ──────────────────────
+  // Previously a publish/reject decision was a silent status flip with no
+  // signal to the submitting chairman at all.
+  test("admin publishing the chairman's submission → 200, notification path doesn't error", async () => {
+    const create = await lga.ctx.post("/api/lga-dashboard/press-releases", {
+      data: { title: "Council opens new market complex", body: "A new market complex was commissioned today to serve local traders." },
+    });
+    const releaseId = (await create.json()).release.id;
+
+    const admin = await apiRequest.newContext({ baseURL: BASE });
+    const res = await admin.patch(`/api/admin/press-releases/${releaseId}`, {
+      headers: ADMIN,
+      data: { action: "publish" },
+    });
+    expect(res.status()).toBe(200);
+    expect((await res.json()).release.status).toBe("PUBLISHED");
+
+    const list = await lga.ctx.get("/api/lga-dashboard/press-releases");
+    const mine = (await list.json()).releases.find((r: { id: string }) => r.id === releaseId);
+    expect(mine.status).toBe("PUBLISHED");
+  });
+
+  test("admin rejecting the chairman's submission → 200 with reason, notification path doesn't error", async () => {
+    const create = await lga.ctx.post("/api/lga-dashboard/press-releases", {
+      data: { title: "Council announces road closure", body: "Market road will be closed for resurfacing starting next week." },
+    });
+    const releaseId = (await create.json()).release.id;
+
+    const admin = await apiRequest.newContext({ baseURL: BASE });
+    const res = await admin.patch(`/api/admin/press-releases/${releaseId}`, {
+      headers: ADMIN,
+      data: { action: "reject", reason: "Please include the exact closure dates." },
+    });
+    expect(res.status()).toBe(200);
+    const body = await res.json();
+    expect(body.release.status).toBe("REJECTED");
+    expect(body.release.rejectedReason).toBe("Please include the exact closure dates.");
+
+    const list = await lga.ctx.get("/api/lga-dashboard/press-releases");
+    const mine = (await list.json()).releases.find((r: { id: string }) => r.id === releaseId);
+    expect(mine.rejectedReason).toBe("Please include the exact closure dates.");
+  });
 });
 
 // ─── Tenure re-election ──────────────────────────────────────────────────────

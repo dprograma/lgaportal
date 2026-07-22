@@ -5,9 +5,10 @@ import Link from "next/link";
 import Papa from "papaparse";
 import {
   Plus, Upload, ChevronDown, Eye, EyeOff, Trash2,
-  ChevronLeft, ChevronRight, AlertCircle, CheckCircle, FileText,
+  ChevronLeft, ChevronRight, AlertCircle, CheckCircle, FileText, FileUp, X,
 } from "lucide-react";
 import { STATE_COORDS } from "@/lib/nigeria-coordinates";
+import { uploadAdminFile } from "@/lib/admin-upload-client";
 
 interface AllocationRecord {
   id: string; lgaName: string; state: string;
@@ -223,6 +224,185 @@ function CSVUploadModal({ onClose, onUploaded }: { onClose: () => void; onUpload
   );
 }
 
+// ─── PDF import (best-effort extraction, reviewed before import) ────────────
+
+interface ExtractedRow { name: string; state: string | null; amount: number }
+
+function PdfImportModal({ onClose, onUploaded }: { onClose: () => void; onUploaded: (count: number) => void }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [stage, setStage] = useState<"pick" | "uploading" | "extracting" | "review" | "importing" | "done" | "error">("pick");
+  const [msg, setMsg] = useState("");
+  const [rows, setRows] = useState<ExtractedRow[]>([]);
+  const [month, setMonth] = useState(String(new Date().getMonth() + 1));
+  const [year, setYear] = useState(String(currentYear));
+  const [source, setSource] = useState("");
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    setSource(f.name);
+    setStage("uploading");
+    try {
+      const pdfUrl = await uploadAdminFile(f, getAdminSecret());
+      setStage("extracting");
+      const res = await fetch("/api/admin/allocations/pdf-extract", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-secret": getAdminSecret() },
+        body: JSON.stringify({ pdfUrl }),
+      });
+      const d = await res.json();
+      if (!res.ok) { setStage("error"); setMsg(d.error ?? "Extraction failed."); return; }
+      if (!d.rows.length) { setStage("error"); setMsg("No rows could be extracted from this PDF. It may be scanned/image-based, or use a layout this tool doesn't recognise yet."); return; }
+      setRows(d.rows);
+      setStage("review");
+    } catch (err) {
+      setStage("error");
+      setMsg(err instanceof Error ? err.message : "Upload failed.");
+    }
+  }
+
+  function updateRow(i: number, patch: Partial<ExtractedRow>) {
+    setRows((prev) => prev.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  }
+  function removeRow(i: number) {
+    setRows((prev) => prev.filter((_, j) => j !== i));
+  }
+
+  async function confirmImport() {
+    setStage("importing");
+    const records = rows
+      .filter((r) => r.name && r.state && r.amount > 0)
+      .map((r) => ({ lgaName: r.name, state: r.state as string, month: Number(month), year: Number(year), amount: r.amount, source: `PDF import: ${source}` }));
+
+    const res = await fetch("/api/admin/allocations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-secret": getAdminSecret() },
+      body: JSON.stringify(records),
+    });
+    const d = await res.json();
+    if (!res.ok) { setStage("error"); setMsg(d.error ?? "Import failed."); return; }
+    setStage("done");
+    setMsg(`${records.length} record(s) imported.`);
+    setTimeout(() => onUploaded(records.length), 1200);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl p-6 max-w-2xl w-full shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-1">
+          <h3 className="font-bold text-slate-900 text-lg">Import from FAAC PDF</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700"><X className="h-5 w-5" /></button>
+        </div>
+        <p className="text-xs text-slate-400 mb-4">
+          Upload the official monthly disbursement PDF. Extraction is best-effort — review every row below before importing.
+        </p>
+
+        {stage === "pick" && (
+          <>
+            <input ref={fileRef} type="file" accept="application/pdf" onChange={handleFile} className="hidden" />
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="w-full border-2 border-dashed border-slate-200 rounded-xl py-8 text-center hover:border-green-400 transition-colors cursor-pointer"
+            >
+              <FileUp className="h-6 w-6 text-slate-300 mx-auto mb-2" />
+              <p className="text-sm text-slate-400">Click to select a PDF file</p>
+            </button>
+          </>
+        )}
+
+        {(stage === "uploading" || stage === "extracting") && (
+          <div className="py-12 text-center text-sm text-slate-400">
+            {stage === "uploading" ? "Uploading PDF…" : "Extracting table rows…"}
+          </div>
+        )}
+
+        {stage === "error" && (
+          <div className="mb-4 flex items-center gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+            <AlertCircle className="h-4 w-4 shrink-0" /> {msg}
+          </div>
+        )}
+
+        {stage === "review" && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-slate-500 block mb-1">Month (applies to all rows)</label>
+                <select value={month} onChange={(e) => setMonth(e.target.value)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-green-500">
+                  {MONTH_NAMES.slice(1).map((m, i) => <option key={i + 1} value={String(i + 1)}>{m}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-slate-500 block mb-1">Year (applies to all rows)</label>
+                <select value={year} onChange={(e) => setYear(e.target.value)} className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-green-500">
+                  {YEARS.map((y) => <option key={y} value={String(y)}>{y}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs font-medium text-slate-500 mb-1.5">{rows.length} row(s) extracted — fix anything that looks wrong before importing:</p>
+              <div className="max-h-72 overflow-y-auto border border-slate-200 rounded-lg">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-slate-50">
+                    <tr>
+                      <th className="text-left px-2 py-1.5 font-semibold text-slate-500">LGA Name</th>
+                      <th className="text-left px-2 py-1.5 font-semibold text-slate-500">State</th>
+                      <th className="text-right px-2 py-1.5 font-semibold text-slate-500">Amount (₦)</th>
+                      <th className="px-2 py-1.5" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {rows.map((r, i) => (
+                      <tr key={i} className={!r.state || !r.name ? "bg-amber-50" : ""}>
+                        <td className="px-2 py-1">
+                          <input value={r.name} onChange={(e) => updateRow(i, { name: e.target.value })} className="w-full px-1.5 py-1 bg-white border border-slate-200 rounded text-xs outline-none focus:ring-1 focus:ring-green-500" />
+                        </td>
+                        <td className="px-2 py-1">
+                          <select value={r.state ?? ""} onChange={(e) => updateRow(i, { state: e.target.value })} className="w-full px-1.5 py-1 bg-white border border-slate-200 rounded text-xs outline-none focus:ring-1 focus:ring-green-500">
+                            <option value="">—</option>
+                            {ALL_STATES.slice(1).map((s) => <option key={s} value={s}>{s}</option>)}
+                          </select>
+                        </td>
+                        <td className="px-2 py-1">
+                          <input type="number" value={r.amount} onChange={(e) => updateRow(i, { amount: Number(e.target.value) })} className="w-full px-1.5 py-1 bg-white border border-slate-200 rounded text-xs text-right outline-none focus:ring-1 focus:ring-green-500" />
+                        </td>
+                        <td className="px-1 py-1">
+                          <button onClick={() => removeRow(i)} className="text-slate-300 hover:text-red-500 transition-colors"><X className="h-3.5 w-3.5" /></button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {rows.some((r) => !r.state) && (
+                <p className="text-xs text-amber-600 mt-1.5">Rows highlighted above are missing a state — pick one or remove the row before importing.</p>
+              )}
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={confirmImport}
+                disabled={!rows.some((r) => r.name && r.state && r.amount > 0)}
+                className="flex-1 py-2 bg-green-700 text-white text-sm font-semibold rounded-lg hover:bg-green-800 disabled:opacity-40 transition-colors"
+              >
+                Import {rows.filter((r) => r.name && r.state && r.amount > 0).length} row(s)
+              </button>
+              <button onClick={onClose} className="px-4 py-2 border border-slate-200 text-slate-600 text-sm rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+            </div>
+          </div>
+        )}
+
+        {(stage === "importing" || stage === "done") && (
+          <div className={`px-3 py-2 rounded-lg text-sm flex items-center gap-2 ${stage === "done" ? "bg-green-50 text-green-700" : "bg-blue-50 text-blue-700"}`}>
+            {stage === "done" ? <CheckCircle className="h-4 w-4 shrink-0" /> : <AlertCircle className="h-4 w-4 shrink-0" />}
+            {stage === "importing" ? "Importing…" : msg}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AdminAllocationsPage() {
@@ -234,6 +414,7 @@ export default function AdminAllocationsPage() {
   const [toast,    setToast]    = useState("");
   const [showAdd,  setShowAdd]  = useState(false);
   const [showCSV,  setShowCSV]  = useState(false);
+  const [showPdf,  setShowPdf]  = useState(false);
 
   const [filterState, setFilterState] = useState("");
   const [filterYear,  setFilterYear]  = useState("");
@@ -292,6 +473,12 @@ export default function AdminAllocationsPage() {
           >
             <FileText className="h-3.5 w-3.5" /> Articles
           </Link>
+          <button
+            onClick={() => setShowPdf(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:border-slate-300 transition-colors"
+          >
+            <FileUp className="h-3.5 w-3.5" /> Import from PDF
+          </button>
           <button
             onClick={() => setShowCSV(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:border-slate-300 transition-colors"
@@ -434,6 +621,7 @@ export default function AdminAllocationsPage() {
 
       {showAdd && <AddRecordModal onClose={() => setShowAdd(false)} onAdded={() => { setShowAdd(false); fetchRecords(); showToast("Record saved."); }} />}
       {showCSV && <CSVUploadModal onClose={() => setShowCSV(false)} onUploaded={count => { setShowCSV(false); fetchRecords(); showToast(`${count} records imported.`); }} />}
+      {showPdf && <PdfImportModal onClose={() => setShowPdf(false)} onUploaded={(count) => { setShowPdf(false); fetchRecords(); showToast(`${count} records imported from PDF.`); }} />}
     </div>
   );
 }

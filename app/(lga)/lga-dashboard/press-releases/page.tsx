@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Newspaper, Plus, Clock, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import UploadButton from "@/components/lga-dashboard/UploadButton";
 
 interface PressRelease {
   id: string;
@@ -163,10 +164,22 @@ export default function LgaPressReleasesPage() {
                 </div>
 
                 <div>
-                  <label className="text-xs font-semibold text-slate-700 block mb-1.5">Attachment URL (optional)</label>
-                  <input type="url" placeholder="https://… (link to attached document)" value={form.attachmentUrl}
-                    onChange={(e) => setForm((f) => ({ ...f, attachmentUrl: e.target.value }))}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-green-400" />
+                  <label className="text-xs font-semibold text-slate-700 block mb-1.5">Attachment (optional)</label>
+                  <div className="flex gap-2">
+                    <input type="url" placeholder="https://… or upload a file from your device" value={form.attachmentUrl}
+                      onChange={(e) => setForm((f) => ({ ...f, attachmentUrl: e.target.value }))}
+                      className="flex-1 px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-green-400" />
+                    <UploadButton
+                      folder="press-releases"
+                      accept="image/*,video/*,.pdf,.doc,.docx"
+                      label="Upload"
+                      onUploaded={(url) => setForm((f) => ({ ...f, attachmentUrl: url }))}
+                      onError={(msg) => toast.error(msg)}
+                    />
+                  </div>
+                  {form.attachmentUrl && (
+                    <p className="text-xs text-green-700 mt-1.5 truncate">Attached: {form.attachmentUrl}</p>
+                  )}
                 </div>
 
                 <div className="flex gap-3 pt-2">

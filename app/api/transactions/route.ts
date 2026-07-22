@@ -1,13 +1,9 @@
 import { NextRequest } from "next/server";
 import { auth } from "@/auth";
 import { db } from "@/lib/db";
+import { getLgaSession } from "@/lib/lga-auth";
 
 export async function GET(req: NextRequest) {
-  const session = await auth();
-  if (!session?.user?.id) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   const searchParams = req.nextUrl.searchParams;
   const type = searchParams.get("type") ?? "user"; // "user" | "lga"
   const lgaId = searchParams.get("lgaId") ?? undefined;
@@ -19,9 +15,20 @@ export async function GET(req: NextRequest) {
 
   const where: Record<string, unknown> = {};
 
-  if (type === "lga" && lgaId) {
+  if (type === "lga") {
+    // LGA-scoped history is authorised by the chairman's own signed session,
+    // never by a client-supplied lgaId — otherwise any logged-in citizen
+    // could read any LGA's payment history just by guessing its id.
+    const lgaSession = await getLgaSession(req);
+    if (!lgaSession || !lgaId || lgaSession.lgaId !== lgaId) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
     where.lgaId = lgaId;
   } else {
+    const session = await auth();
+    if (!session?.user?.id) {
+      return Response.json({ error: "Unauthorized" }, { status: 401 });
+    }
     where.userId = session.user.id;
   }
 

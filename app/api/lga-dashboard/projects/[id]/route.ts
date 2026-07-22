@@ -63,7 +63,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     });
   }
 
-  const project = await db.project.update({ where: { id }, data });
+  const project = await db.project.update({
+    where: { id },
+    data,
+    include: { statusLogs: { orderBy: { createdAt: "desc" }, take: 10 } },
+  });
   return NextResponse.json({ project: { ...project, budget: project.budget?.toString() ?? null } });
 }
 
