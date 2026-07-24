@@ -86,7 +86,7 @@ export default function ExpiringTrialsPage() {
             className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-sm font-semibold transition-colors disabled:opacity-50"
           >
             <Mail className="h-4 w-4" />
-            {sending ? "Sendingâ€¦" : "Send All Reminders"}
+            {sending ? "Sending…" : "Send All Reminders"}
           </button>
         </div>
       </div>

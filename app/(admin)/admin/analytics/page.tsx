@@ -194,7 +194,7 @@ export default function AdminAnalyticsPage() {
                 <span className="text-sm font-bold text-green-400/60 w-5 text-center">{idx + 1}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-white truncate">{lga.lgaName} LGA</p>
-                  <p className="text-xs text-green-200/40 mt-0.5">{lga.state} Â· {lga.status}</p>
+                  <p className="text-xs text-green-200/40 mt-0.5">{lga.state} · {lga.status}</p>
                 </div>
                 <div className="flex items-center gap-1 text-sm font-bold text-green-300">
                   <FileText className="h-3.5 w-3.5 text-green-400/60" />

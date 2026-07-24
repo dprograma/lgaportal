@@ -269,7 +269,7 @@ export default function AdminAdsPage() {
                           <div>
                             <h3 className="font-semibold text-slate-900">{c.title}</h3>
                             <p className="text-xs text-slate-500 mt-0.5">
-                              {c.advertiser.name} Â· {c.advertiser.email}
+                              {c.advertiser.name} · {c.advertiser.email}
                             </p>
                           </div>
                           <span

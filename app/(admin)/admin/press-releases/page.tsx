@@ -173,7 +173,7 @@ export default function AdminPressReleasesPage() {
       <div className="flex flex-wrap gap-3 mb-5">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-          <input type="text" placeholder="Search title or entityâ€¦" value={q} onChange={(e) => setQ(e.target.value)}
+          <input type="text" placeholder="Search title or entity…" value={q} onChange={(e) => setQ(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-white/20 bg-white/10 text-white placeholder:text-green-200/40 text-sm focus:outline-none focus:border-green-400" />
         </div>
         <div className="flex gap-2 flex-wrap">
@@ -211,7 +211,7 @@ export default function AdminPressReleasesPage() {
                       )}
                     </div>
                     <p className="text-xs text-slate-400">
-                      {r.issuingEntity} Â· {new Date(r.dateIssued).toLocaleDateString("en-NG")}
+                      {r.issuingEntity} · {new Date(r.dateIssued).toLocaleDateString("en-NG")}
                     </p>
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
@@ -266,12 +266,12 @@ export default function AdminPressReleasesPage() {
       {/* Pagination */}
       {Math.ceil(total / PAGE) > 1 && (
         <div className="mt-5 flex items-center justify-between text-white">
-          <p className="text-sm text-green-200/60">Showing {page * PAGE + 1}â€“{Math.min((page + 1) * PAGE, total)} of {total}</p>
+          <p className="text-sm text-green-200/60">Showing {page * PAGE + 1}–{Math.min((page + 1) * PAGE, total)} of {total}</p>
           <div className="flex gap-2">
             <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
-              className="px-4 py-2 rounded-xl border border-white/20 text-sm disabled:opacity-40 hover:bg-white/10">â† Prev</button>
+              className="px-4 py-2 rounded-xl border border-white/20 text-sm disabled:opacity-40 hover:bg-white/10">← Prev</button>
             <button onClick={() => setPage((p) => p + 1)} disabled={(page + 1) * PAGE >= total}
-              className="px-4 py-2 rounded-xl border border-white/20 text-sm disabled:opacity-40 hover:bg-white/10">Next â†’</button>
+              className="px-4 py-2 rounded-xl border border-white/20 text-sm disabled:opacity-40 hover:bg-white/10">Next →</button>
           </div>
         </div>
       )}
@@ -286,7 +286,7 @@ export default function AdminPressReleasesPage() {
               exit={{ scale: 0.96, opacity: 0 }}
               className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
               <h3 className="font-bold text-slate-900 mb-3">Reject Press Release</h3>
-              <textarea rows={3} placeholder="Reason for rejection (optional)â€¦" value={rejectReason}
+              <textarea rows={3} placeholder="Reason for rejection (optional)…" value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
                 className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-red-400 resize-none mb-4" />
               <div className="flex gap-3">
@@ -323,7 +323,7 @@ export default function AdminPressReleasesPage() {
                 <div>
                   <label className="text-xs font-semibold text-slate-700 block mb-1.5">Headline *</label>
                   <input type="text" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                    placeholder="Press release headlineâ€¦"
+                    placeholder="Press release headline…"
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-green-400" />
                 </div>
 
@@ -365,7 +365,7 @@ export default function AdminPressReleasesPage() {
                       </div>
                     ) : (
                       <div className="relative">
-                        <input type="text" placeholder="Search LGAâ€¦" value={lgaSearch}
+                        <input type="text" placeholder="Search LGA…" value={lgaSearch}
                           onChange={(e) => setLgaSearch(e.target.value)}
                           className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-green-400" />
                         {lgaOptions.length > 0 && (
@@ -373,7 +373,7 @@ export default function AdminPressReleasesPage() {
                             {lgaOptions.map((lga) => (
                               <button key={lga.id} onClick={() => { setForm((f) => ({ ...f, lgaId: lga.id })); setLgaSearch(`${lga.lgaName} LGA, ${lga.state}`); setLgaOptions([]); }}
                                 className="w-full text-left px-4 py-2 text-sm hover:bg-green-50 border-b border-slate-50 last:border-0">
-                                {lga.lgaName} LGA â€” {lga.state}
+                                {lga.lgaName} LGA — {lga.state}
                               </button>
                             ))}
                           </div>
@@ -387,7 +387,7 @@ export default function AdminPressReleasesPage() {
                   <label className="text-xs font-semibold text-slate-700 block mb-1.5">Body *</label>
                   <textarea rows={8} value={form.body}
                     onChange={(e) => setForm((f) => ({ ...f, body: e.target.value }))}
-                    placeholder="Full press release contentâ€¦"
+                    placeholder="Full press release content…"
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-green-400 resize-none leading-relaxed" />
                 </div>
 
@@ -395,7 +395,7 @@ export default function AdminPressReleasesPage() {
                   <label className="text-xs font-semibold text-slate-700 block mb-1.5">Attachment URL (optional)</label>
                   <input type="url" value={form.attachmentUrl}
                     onChange={(e) => setForm((f) => ({ ...f, attachmentUrl: e.target.value }))}
-                    placeholder="https://â€¦"
+                    placeholder="https://…"
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-green-400" />
                 </div>
 

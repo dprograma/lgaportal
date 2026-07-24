@@ -273,7 +273,7 @@ export default function AdminRevenuePage() {
               {data.recentTransactions.map((t) => (
                 <tr key={t.id} className="hover:bg-slate-50">
                   <td className="px-5 py-3 font-mono text-xs text-slate-600">
-                    {t.invoiceNumber ?? "â€”"}
+                    {t.invoiceNumber ?? "—"}
                   </td>
                   <td className="px-4 py-3 text-slate-700">
                     {purposeLabels[t.purpose] ?? t.purpose}

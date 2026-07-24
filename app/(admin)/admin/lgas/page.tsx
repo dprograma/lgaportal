@@ -461,7 +461,7 @@ export default function AdminLGAsPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search LGA nameâ€¦"
+            placeholder="Search LGA name…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-100"
@@ -469,7 +469,7 @@ export default function AdminLGAsPage() {
         </div>
         <input
           type="text"
-          placeholder="Filter by stateâ€¦"
+          placeholder="Filter by state…"
           value={stateFilter}
           onChange={(e) => { setStateFilter(e.target.value); setPage(0); }}
           className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-green-500 focus:ring-1 focus:ring-green-100 w-44"
@@ -500,21 +500,23 @@ export default function AdminLGAsPage() {
             {lgas.map((lga) => (
               <div key={lga.id}>
                 {/* Row */}
-                <div className="flex items-center gap-4 px-5 py-4 hover:bg-slate-50 transition-colors">
-                  <div className="h-9 w-9 rounded-xl bg-green-100 flex items-center justify-center text-green-700 font-bold text-sm shrink-0">
-                    {lga.lgaName.charAt(0)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-semibold text-slate-900 truncate">{lga.lgaName} LGA</span>
-                      {lga.isVerified && <BadgeCheck className="h-3.5 w-3.5 text-green-600 shrink-0" />}
-                      <StatusBadge status={lga.status} />
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 px-4 sm:px-5 py-4 hover:bg-slate-50 transition-colors">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="h-9 w-9 rounded-xl bg-green-100 flex items-center justify-center text-green-700 font-bold text-sm shrink-0">
+                      {lga.lgaName.charAt(0)}
                     </div>
-                    <p className="text-xs text-slate-400 mt-0.5">
-                      {lga.state} Â· {lga.chairmanName} Â· {lga._count.verificationDocs} doc{lga._count.verificationDocs !== 1 ? "s" : ""}
-                    </p>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-semibold text-slate-900 truncate">{lga.lgaName} LGA</span>
+                        {lga.isVerified && <BadgeCheck className="h-3.5 w-3.5 text-green-600 shrink-0" />}
+                        <StatusBadge status={lga.status} />
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5 truncate">
+                        {lga.state} · {lga.chairmanName} · {lga._count.verificationDocs} doc{lga._count.verificationDocs !== 1 ? "s" : ""}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                  <div className="flex items-center gap-2 flex-wrap sm:justify-end sm:shrink-0">
                     {lga.status === "PENDING" && (
                       <>
                         <button
@@ -630,16 +632,16 @@ export default function AdminLGAsPage() {
       {Math.ceil(total / PAGE) > 1 && (
         <div className="mt-6 flex items-center justify-between">
           <p className="text-sm text-slate-500">
-            Showing {page * PAGE + 1}â€“{Math.min((page + 1) * PAGE, total)} of {total}
+            Showing {page * PAGE + 1}–{Math.min((page + 1) * PAGE, total)} of {total}
           </p>
           <div className="flex gap-2">
             <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
               className="px-4 py-2 rounded-xl border border-slate-200 text-sm disabled:opacity-40 hover:border-green-400 transition-colors">
-              â† Prev
+              ← Prev
             </button>
             <button onClick={() => setPage((p) => p + 1)} disabled={(page + 1) * PAGE >= total}
               className="px-4 py-2 rounded-xl border border-slate-200 text-sm disabled:opacity-40 hover:border-green-400 transition-colors">
-              Next â†’
+              Next →
             </button>
           </div>
         </div>
@@ -673,7 +675,7 @@ export default function AdminLGAsPage() {
               <textarea
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
-                placeholder="Enter reason for rejection (min 10 characters)â€¦"
+                placeholder="Enter reason for rejection (min 10 characters)…"
                 rows={4}
                 className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-100 resize-none mb-4"
               />
