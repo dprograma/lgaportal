@@ -637,7 +637,7 @@ export default function AdminLGAsPage() {
           <div className="flex gap-2">
             <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
               className="px-4 py-2 rounded-xl border border-slate-200 text-sm disabled:opacity-40 hover:border-green-400 transition-colors">
-              ← Prev
+              ← Prev
             </button>
             <button onClick={() => setPage((p) => p + 1)} disabled={(page + 1) * PAGE >= total}
               className="px-4 py-2 rounded-xl border border-slate-200 text-sm disabled:opacity-40 hover:border-green-400 transition-colors">

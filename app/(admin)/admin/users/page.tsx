@@ -132,18 +132,18 @@ export default function AdminUsersPage() {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
-          <Users className="h-5 w-5 text-green-400" />
-          <h1 className="text-2xl font-bold text-white">User Management</h1>
+          <Users className="h-5 w-5 text-green-600" />
+          <h1 className="text-2xl font-bold text-slate-900">User Management</h1>
         </div>
-        <p className="text-green-200/60 text-sm">{total.toLocaleString()} total accounts</p>
+        <p className="text-slate-500 text-sm">{total.toLocaleString()} total accounts</p>
       </div>
 
       {/* Role tabs */}
-      <div className="flex gap-1 bg-white/10 p-1 rounded-xl mb-4 overflow-x-auto">
+      <div className="flex gap-1 bg-slate-100 p-1 rounded-xl mb-4 overflow-x-auto">
         {ROLE_TABS.map(({ label, value }) => (
           <button key={value} onClick={() => setRoleTab(value)}
             className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
-              roleTab === value ? "bg-green-600 text-white" : "text-green-100/70 hover:bg-white/10 hover:text-white"
+              roleTab === value ? "bg-white shadow-sm text-slate-900" : "text-slate-500 hover:bg-white/60"
             }`}>
             {label}
           </button>
@@ -157,15 +157,15 @@ export default function AdminUsersPage() {
           <input
             type="text" placeholder="Search name or email…"
             value={search} onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-white/20 bg-white/10 text-white placeholder:text-green-200/40 text-sm focus:outline-none focus:border-green-400"
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 text-sm focus:outline-none focus:border-green-400"
           />
         </div>
         <select value={status} onChange={(e) => setStatus(e.target.value as StatusFilter)}
-          className="px-3 py-2.5 rounded-xl border border-white/20 bg-white/10 text-sm text-white focus:outline-none focus:border-green-400">
-          <option value="ALL" className="text-slate-900">All Status</option>
-          <option value="ACTIVE" className="text-slate-900">Active</option>
-          <option value="BANNED" className="text-slate-900">Banned</option>
-          <option value="SUSPENDED" className="text-slate-900">Suspended</option>
+          className="px-3 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-slate-700 focus:outline-none focus:border-green-400">
+          <option value="ALL">All Status</option>
+          <option value="ACTIVE">Active</option>
+          <option value="BANNED">Banned</option>
+          <option value="SUSPENDED">Suspended</option>
         </select>
       </div>
 
@@ -192,27 +192,29 @@ export default function AdminUsersPage() {
           <div className="divide-y divide-slate-100">
             {users.map((user) => (
               <div key={user.id}>
-                <div className="flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 transition-colors">
-                  {/* Avatar */}
-                  <div className="h-9 w-9 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold text-sm shrink-0">
-                    {user.name.charAt(0).toUpperCase()}
-                  </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-semibold text-slate-900 truncate">{user.name}</span>
-                      <RoleBadge role={user.role} />
-                      {user.isBanned && (
-                        <span className="px-1.5 py-0.5 rounded text-xs bg-red-100 text-red-700 font-semibold">BANNED</span>
-                      )}
-                      {!user.isBanned && user.suspendedUntil && new Date(user.suspendedUntil) > new Date() && (
-                        <span className="px-1.5 py-0.5 rounded text-xs bg-orange-100 text-orange-700 font-semibold">SUSPENDED</span>
-                      )}
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 px-4 sm:px-5 py-3.5 hover:bg-slate-50 transition-colors">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {/* Avatar */}
+                    <div className="h-9 w-9 rounded-full bg-green-100 flex items-center justify-center text-green-700 font-bold text-sm shrink-0">
+                      {user.name.charAt(0).toUpperCase()}
                     </div>
-                    <p className="text-xs text-slate-400 mt-0.5 truncate">{user.email}</p>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-semibold text-slate-900 truncate">{user.name}</span>
+                        <RoleBadge role={user.role} />
+                        {user.isBanned && (
+                          <span className="px-1.5 py-0.5 rounded text-xs bg-red-100 text-red-700 font-semibold">BANNED</span>
+                        )}
+                        {!user.isBanned && user.suspendedUntil && new Date(user.suspendedUntil) > new Date() && (
+                          <span className="px-1.5 py-0.5 rounded text-xs bg-orange-100 text-orange-700 font-semibold">SUSPENDED</span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400 mt-0.5 truncate">{user.email}</p>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5 shrink-0">
+                  <div className="flex items-center gap-1.5 flex-wrap sm:justify-end sm:shrink-0">
                     {user.isBanned ? (
                       <button onClick={() => runAction(user.id, "activate")} disabled={acting === user.id}
                         className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-green-700 hover:bg-green-800 text-white text-xs font-semibold disabled:opacity-40">
@@ -273,17 +275,17 @@ export default function AdminUsersPage() {
 
       {/* Pagination */}
       {Math.ceil(total / PAGE) > 1 && (
-        <div className="mt-5 flex items-center justify-between text-white">
-          <p className="text-sm text-green-200/60">
+        <div className="mt-5 flex items-center justify-between">
+          <p className="text-sm text-slate-500">
             Showing {page * PAGE + 1}–{Math.min((page + 1) * PAGE, total)} of {total}
           </p>
           <div className="flex gap-2">
             <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
-              className="px-4 py-2 rounded-xl border border-white/20 text-sm disabled:opacity-40 hover:bg-white/10">
-              ← Prev
+              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm disabled:opacity-40 hover:bg-slate-50">
+              ← Prev
             </button>
             <button onClick={() => setPage((p) => p + 1)} disabled={(page + 1) * PAGE >= total}
-              className="px-4 py-2 rounded-xl border border-white/20 text-sm disabled:opacity-40 hover:bg-white/10">
+              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm disabled:opacity-40 hover:bg-slate-50">
               Next →
             </button>
           </div>

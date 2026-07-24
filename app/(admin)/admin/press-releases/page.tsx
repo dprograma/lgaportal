@@ -155,13 +155,13 @@ export default function AdminPressReleasesPage() {
       <div className="mb-6 flex items-start justify-between gap-4">
         <div className="min-w-0">
           <div className="flex items-center gap-2 mb-1">
-            <Newspaper className="h-5 w-5 text-green-400 shrink-0" />
-            <h1 className="text-2xl font-bold text-white">Press Releases</h1>
+            <Newspaper className="h-5 w-5 text-green-600 shrink-0" />
+            <h1 className="text-2xl font-bold text-slate-900">Press Releases</h1>
             {pendingCount > 0 && (
               <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white text-xs font-bold">{pendingCount} pending</span>
             )}
           </div>
-          <p className="text-green-200/60 text-sm">{total.toLocaleString()} total records</p>
+          <p className="text-slate-500 text-sm">{total.toLocaleString()} total records</p>
         </div>
         <button onClick={() => setShowForm(true)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-semibold shrink-0">
@@ -174,13 +174,13 @@ export default function AdminPressReleasesPage() {
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
           <input type="text" placeholder="Search title or entity…" value={q} onChange={(e) => setQ(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-white/20 bg-white/10 text-white placeholder:text-green-200/40 text-sm focus:outline-none focus:border-green-400" />
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 text-sm focus:outline-none focus:border-green-400" />
         </div>
         <div className="flex gap-2 flex-wrap">
           {(["", "PENDING", "PUBLISHED", "REJECTED"] as const).map((s) => (
             <button key={s} onClick={() => { setStatusFilter(s); setPage(0); }}
               className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-colors ${
-                statusFilter === s ? "bg-green-600 text-white border-green-600" : "border-white/20 text-green-200/70 hover:bg-white/10"
+                statusFilter === s ? "bg-green-600 text-white border-green-600" : "border-slate-200 text-slate-500 hover:bg-slate-50"
               }`}>{s === "" ? "All" : s.charAt(0) + s.slice(1).toLowerCase()}</button>
           ))}
         </div>
@@ -265,13 +265,13 @@ export default function AdminPressReleasesPage() {
 
       {/* Pagination */}
       {Math.ceil(total / PAGE) > 1 && (
-        <div className="mt-5 flex items-center justify-between text-white">
-          <p className="text-sm text-green-200/60">Showing {page * PAGE + 1}–{Math.min((page + 1) * PAGE, total)} of {total}</p>
+        <div className="mt-5 flex items-center justify-between">
+          <p className="text-sm text-slate-500">Showing {page * PAGE + 1}–{Math.min((page + 1) * PAGE, total)} of {total}</p>
           <div className="flex gap-2">
             <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
-              className="px-4 py-2 rounded-xl border border-white/20 text-sm disabled:opacity-40 hover:bg-white/10">← Prev</button>
+              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm disabled:opacity-40 hover:bg-slate-50">← Prev</button>
             <button onClick={() => setPage((p) => p + 1)} disabled={(page + 1) * PAGE >= total}
-              className="px-4 py-2 rounded-xl border border-white/20 text-sm disabled:opacity-40 hover:bg-white/10">Next →</button>
+              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm disabled:opacity-40 hover:bg-slate-50">Next →</button>
           </div>
         </div>
       )}
