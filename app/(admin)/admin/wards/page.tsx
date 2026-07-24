@@ -319,6 +319,8 @@ export default function AdminWardsPage() {
   const [showAdd,  setShowAdd]  = useState(false);
   const [showCSV,  setShowCSV]  = useState(false);
   const [editing,  setEditing]  = useState<WardRecord | null>(null);
+  const [singleUploadId, setSingleUploadId] = useState<string | null>(null);
+  const singleUploadRef = useRef<HTMLInputElement>(null);
 
   const [filterState, setFilterState] = useState("");
   const [search,       setSearch]      = useState("");
@@ -360,6 +362,54 @@ export default function AdminWardsPage() {
     a.download = `ward-records-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function downloadSingleCsv(id: string) {
+    const res = await fetch(`/api/admin/wards/export?id=${id}`, { headers: { "x-admin-secret": getAdminSecret() } });
+    if (!res.ok) { showToast("Download failed."); return; }
+    const disposition = res.headers.get("Content-Disposition") ?? "";
+    const filename = disposition.match(/filename="(.+)"/)?.[1] ?? `ward-${id}.csv`;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function triggerSingleUpload(id: string) {
+    setSingleUploadId(id);
+    singleUploadRef.current?.click();
+  }
+
+  function handleSingleUploadFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    const id = singleUploadId;
+    e.target.value = "";
+    if (!file || !id) return;
+
+    Papa.parse<Record<string, string>>(file, {
+      header: true, skipEmptyLines: true,
+      complete: async (result) => {
+        const row = result.data[0];
+        if (!row) { showToast("CSV has no data rows."); return; }
+        const body: Record<string, unknown> = {};
+        for (const key of ["wardName", "councillorName", "councillorEmail", "councillorPhone", "population", "description"]) {
+          if (row[key]) body[key] = row[key];
+        }
+        if (row.wardNumber) body.wardNumber = Number(row.wardNumber);
+        const res = await fetch(`/api/admin/wards/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", "x-admin-secret": getAdminSecret() },
+          body: JSON.stringify(body),
+        });
+        const d = await res.json();
+        if (!res.ok) { showToast(d.error ?? "Upload failed."); return; }
+        showToast("Ward record updated from CSV.");
+        fetchWards();
+      },
+    });
   }
 
   const pages = Math.ceil(total / LIMIT);
@@ -468,6 +518,20 @@ export default function AdminWardsPage() {
                           <Pencil className="h-3.5 w-3.5" />
                         </button>
                         <button
+                          onClick={() => downloadSingleCsv(w.id)}
+                          title="Download this ward's record as CSV"
+                          className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => triggerSingleUpload(w.id)}
+                          title="Upload a CSV to correct this ward's record"
+                          className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                        >
+                          <Upload className="h-3.5 w-3.5" />
+                        </button>
+                        <button
                           onClick={() => deleteWard(w.id)}
                           disabled={busy === w.id}
                           title="Delete"
@@ -520,6 +584,7 @@ export default function AdminWardsPage() {
           onSaved={() => { setEditing(null); fetchWards(); showToast("Ward updated."); }}
         />
       )}
+      <input ref={singleUploadRef} type="file" accept=".csv" onChange={handleSingleUploadFile} className="hidden" />
     </div>
   );
 }
