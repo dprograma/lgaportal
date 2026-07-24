@@ -141,7 +141,7 @@ export default function AdminProcurementPage() {
       <div className="relative mb-5 max-w-sm">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
         <input
-          type="text" placeholder="Search title or contractorâ€¦"
+          type="text" placeholder="Search title or contractor…"
           value={search} onChange={(e) => setSearch(e.target.value)}
           className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-white/20 bg-white/10 text-white placeholder:text-green-200/40 text-sm focus:outline-none focus:border-green-400"
         />
@@ -170,7 +170,7 @@ export default function AdminProcurementPage() {
                     )}
                   </div>
                   <p className="text-xs text-slate-400">
-                    {c.lga.lgaName} LGA Â· {c.contractor} Â· {naira(c.value)} Â· {new Date(c.awardDate).toLocaleDateString("en-NG")}
+                    {c.lga.lgaName} LGA · {c.contractor} · {naira(c.value)} · {new Date(c.awardDate).toLocaleDateString("en-NG")}
                   </p>
                   <p className="text-xs text-slate-500 mt-1 line-clamp-2">{c.scope}</p>
                 </div>
@@ -193,12 +193,12 @@ export default function AdminProcurementPage() {
       {/* Pagination */}
       {Math.ceil(total / PAGE) > 1 && (
         <div className="mt-5 flex items-center justify-between text-white">
-          <p className="text-sm text-green-200/60">Showing {page * PAGE + 1}â€“{Math.min((page + 1) * PAGE, total)} of {total}</p>
+          <p className="text-sm text-green-200/60">Showing {page * PAGE + 1}–{Math.min((page + 1) * PAGE, total)} of {total}</p>
           <div className="flex gap-2">
             <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
-              className="px-4 py-2 rounded-xl border border-white/20 text-sm disabled:opacity-40 hover:bg-white/10">â† Prev</button>
+              className="px-4 py-2 rounded-xl border border-white/20 text-sm disabled:opacity-40 hover:bg-white/10">← Prev</button>
             <button onClick={() => setPage((p) => p + 1)} disabled={(page + 1) * PAGE >= total}
-              className="px-4 py-2 rounded-xl border border-white/20 text-sm disabled:opacity-40 hover:bg-white/10">Next â†’</button>
+              className="px-4 py-2 rounded-xl border border-white/20 text-sm disabled:opacity-40 hover:bg-white/10">Next →</button>
           </div>
         </div>
       )}
@@ -234,7 +234,7 @@ export default function AdminProcurementPage() {
                     </div>
                   ) : (
                     <div className="relative">
-                      <input type="text" placeholder="Search LGA nameâ€¦" value={lgaSearch}
+                      <input type="text" placeholder="Search LGA name…" value={lgaSearch}
                         onChange={(e) => setLgaSearch(e.target.value)}
                         className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-green-400" />
                       {lgaOptions.length > 0 && (
@@ -242,7 +242,7 @@ export default function AdminProcurementPage() {
                           {lgaOptions.map((lga) => (
                             <button key={lga.id} onClick={() => { setForm((f) => ({ ...f, lgaId: lga.id })); setLgaOptions([]); setLgaSearch(`${lga.lgaName} LGA, ${lga.state}`); }}
                               className="w-full text-left px-4 py-2.5 text-sm hover:bg-green-50 border-b border-slate-50 last:border-0">
-                              {lga.lgaName} LGA â€” {lga.state}
+                              {lga.lgaName} LGA — {lga.state}
                             </button>
                           ))}
                         </div>
@@ -274,7 +274,7 @@ export default function AdminProcurementPage() {
 
                 <div>
                   <label className="text-xs font-semibold text-slate-700 block mb-1.5">Project Scope *</label>
-                  <textarea rows={3} placeholder="Describe the scope of workâ€¦"
+                  <textarea rows={3} placeholder="Describe the scope of work…"
                     value={form.scope} onChange={(e) => setForm((f) => ({ ...f, scope: e.target.value }))}
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-green-400 resize-none" />
                 </div>

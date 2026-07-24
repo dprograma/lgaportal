@@ -294,7 +294,7 @@ export default function ModerationPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-slate-600">
-                        {a.targetType}: {a.targetId.slice(0, 12)}â€¦
+                        {a.targetType}: {a.targetId.slice(0, 12)}…
                       </td>
                       <td className="px-4 py-3 text-slate-500 max-w-[200px] truncate">{a.reason}</td>
                       <td className="px-4 py-3 text-slate-500">{a.admin.name}</td>

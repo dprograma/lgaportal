@@ -220,14 +220,14 @@ export default function AdminLiveStreamsPage() {
                 <div>
                   <label className="text-xs font-semibold text-slate-700 block mb-1.5">Event Title *</label>
                   <input type="text" value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                    placeholder="e.g. LGA Town Hall â€” Ward 4 Water Project Launch"
+                    placeholder="e.g. LGA Town Hall — Ward 4 Water Project Launch"
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-green-400" />
                 </div>
 
                 <div>
                   <label className="text-xs font-semibold text-slate-700 block mb-1.5">Stream URL * <span className="font-normal text-slate-400">(YouTube Live, etc.)</span></label>
                   <input type="url" value={form.streamUrl} onChange={(e) => setForm((f) => ({ ...f, streamUrl: e.target.value }))}
-                    placeholder="https://youtube.com/watch?v=â€¦"
+                    placeholder="https://youtube.com/watch?v=…"
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-green-400" />
                 </div>
 
@@ -242,7 +242,7 @@ export default function AdminLiveStreamsPage() {
                   <label className="text-xs font-semibold text-slate-700 block mb-1.5">Description (optional)</label>
                   <textarea rows={3} value={form.description}
                     onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                    placeholder="Brief description of the eventâ€¦"
+                    placeholder="Brief description of the event…"
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-green-400 resize-none" />
                 </div>
 
@@ -256,7 +256,7 @@ export default function AdminLiveStreamsPage() {
                     </div>
                   ) : (
                     <div className="relative">
-                      <input type="text" placeholder="Search LGAâ€¦" value={lgaSearch}
+                      <input type="text" placeholder="Search LGA…" value={lgaSearch}
                         onChange={(e) => setLgaSearch(e.target.value)}
                         className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:border-green-400" />
                       {lgaOptions.length > 0 && (
@@ -264,7 +264,7 @@ export default function AdminLiveStreamsPage() {
                           {lgaOptions.map((lga) => (
                             <button key={lga.id} onClick={() => { setForm((f) => ({ ...f, lgaId: lga.id })); setLgaSearch(`${lga.lgaName} LGA, ${lga.state}`); setLgaOptions([]); }}
                               className="w-full text-left px-4 py-2 text-sm hover:bg-green-50 border-b border-slate-50 last:border-0">
-                              {lga.lgaName} LGA â€” {lga.state}
+                              {lga.lgaName} LGA — {lga.state}
                             </button>
                           ))}
                         </div>
