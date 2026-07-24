@@ -43,24 +43,24 @@ function StatCard({ icon: Icon, label, value, sub, color = "text-green-600" }: {
   sub?: string; color?: string;
 }) {
   return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
       <div className="flex items-center gap-3 mb-3">
-        <div className="h-9 w-9 rounded-xl bg-green-600/20 flex items-center justify-center">
+        <div className="h-9 w-9 rounded-xl bg-green-100 flex items-center justify-center">
           <Icon className={`h-4 w-4 ${color}`} />
         </div>
-        <p className="text-sm text-green-200/70">{label}</p>
+        <p className="text-sm text-slate-500">{label}</p>
       </div>
-      <p className="text-3xl font-extrabold text-white">{value}</p>
-      {sub && <p className="text-xs text-green-300/50 mt-1">{sub}</p>}
+      <p className="text-3xl font-extrabold text-slate-900">{value}</p>
+      {sub && <p className="text-xs text-slate-400 mt-1">{sub}</p>}
     </div>
   );
 }
 
 function nairaK(koboStr: string) {
   const naira = (koboStr && koboStr !== "0" ? Number(BigInt(koboStr)) : 0) / 100;
-  if (naira >= 1_000_000) return `â‚¦${(naira / 1_000_000).toFixed(1)}M`;
-  if (naira >= 1_000)     return `â‚¦${(naira / 1_000).toFixed(1)}K`;
-  return `â‚¦${naira.toFixed(2)}`;
+  if (naira >= 1_000_000) return `₦${(naira / 1_000_000).toFixed(1)}M`;
+  if (naira >= 1_000)     return `₦${(naira / 1_000).toFixed(1)}K`;
+  return `₦${naira.toFixed(2)}`;
 }
 
 export default function AdminAnalyticsPage() {
@@ -78,14 +78,14 @@ export default function AdminAnalyticsPage() {
   if (loading) {
     return (
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-4">
-        {[0,1,2].map((i) => <div key={i} className="h-32 bg-white/5 rounded-2xl animate-pulse" />)}
+        {[0,1,2].map((i) => <div key={i} className="h-32 bg-slate-100 rounded-2xl animate-pulse" />)}
       </div>
     );
   }
 
   if (!data) {
     return (
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 text-center text-green-200/60">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 text-center text-slate-400">
         Failed to load analytics.
       </div>
     );
@@ -102,10 +102,10 @@ export default function AdminAnalyticsPage() {
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
-          <Activity className="h-5 w-5 text-green-400" />
-          <h1 className="text-2xl font-bold text-white">Platform Analytics</h1>
+          <Activity className="h-5 w-5 text-green-600" />
+          <h1 className="text-2xl font-bold text-slate-900">Platform Analytics</h1>
         </div>
-        <p className="text-green-200/60 text-sm">Real-time overview of platform activity</p>
+        <p className="text-slate-500 text-sm">Real-time overview of platform activity</p>
       </div>
 
       {/* Key metrics */}
@@ -123,22 +123,22 @@ export default function AdminAnalyticsPage() {
       {/* Charts */}
       <div className="grid lg:grid-cols-2 gap-6 mb-8">
         {/* Monthly revenue bar chart */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
-          <h2 className="text-sm font-semibold text-green-200/80 mb-4">Monthly Revenue (â‚¦)</h2>
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+          <h2 className="text-sm font-semibold text-slate-700 mb-4">Monthly Revenue (₦)</h2>
           {revenueChartData.length === 0 ? (
-            <div className="h-48 flex items-center justify-center text-sm text-green-200/40">
+            <div className="h-48 flex items-center justify-center text-sm text-slate-400">
               No revenue data yet
             </div>
           ) : (
             <ResponsiveContainer width="100%" height={200}>
               <BarChart data={revenueChartData} margin={{ top: 0, right: 8, bottom: 0, left: -20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" />
-                <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#6ee7b7" }} />
-                <YAxis tick={{ fontSize: 10, fill: "#6ee7b7" }}
-                  tickFormatter={(v) => `â‚¦${(Number(v) / 1000).toFixed(0)}K`} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis dataKey="month" tick={{ fontSize: 10, fill: "#94a3b8" }} />
+                <YAxis tick={{ fontSize: 10, fill: "#94a3b8" }}
+                  tickFormatter={(v) => `₦${(Number(v) / 1000).toFixed(0)}K`} />
                 <Tooltip
-                  contentStyle={{ background: "#0f2d1a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff" }}
-                  formatter={(v) => [`â‚¦${Number(v).toLocaleString()}`, "Revenue"]}
+                  contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, color: "#0f172a" }}
+                  formatter={(v) => [`₦${Number(v).toLocaleString()}`, "Revenue"]}
                 />
                 <Bar dataKey="revenue" fill="#15803d" radius={[4,4,0,0]} />
               </BarChart>
@@ -147,8 +147,8 @@ export default function AdminAnalyticsPage() {
         </div>
 
         {/* LGA status pie */}
-        <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
-          <h2 className="text-sm font-semibold text-green-200/80 mb-4">LGA Status Breakdown</h2>
+        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+          <h2 className="text-sm font-semibold text-slate-700 mb-4">LGA Status Breakdown</h2>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
               <Pie data={lgaStatusData} dataKey="value" nameKey="name"
@@ -158,7 +158,7 @@ export default function AdminAnalyticsPage() {
                 ))}
               </Pie>
               <Tooltip
-                contentStyle={{ background: "#0f2d1a", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff" }}
+                contentStyle={{ background: "#fff", border: "1px solid #e2e8f0", borderRadius: 12, color: "#0f172a" }}
                 formatter={(v, name) => [v, name]}
               />
             </PieChart>
@@ -167,37 +167,37 @@ export default function AdminAnalyticsPage() {
       </div>
 
       {/* User role breakdown */}
-      <div className="bg-white/5 border border-white/10 rounded-2xl p-5 mb-6">
-        <h2 className="text-sm font-semibold text-green-200/80 mb-4">User Breakdown by Role</h2>
+      <div className="bg-white border border-slate-200 rounded-2xl p-5 mb-6 shadow-sm">
+        <h2 className="text-sm font-semibold text-slate-700 mb-4">User Breakdown by Role</h2>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {userRoleData.map(({ name, value }) => (
-            <div key={name} className="text-center p-3 rounded-xl bg-white/5">
-              <p className="text-xl font-bold text-white">{value.toLocaleString()}</p>
-              <p className="text-xs text-green-200/50 mt-1">{name.replace("_", " ")}</p>
+            <div key={name} className="text-center p-3 rounded-xl bg-slate-50">
+              <p className="text-xl font-bold text-slate-900">{value.toLocaleString()}</p>
+              <p className="text-xs text-slate-500 mt-1">{name.replace("_", " ")}</p>
             </div>
           ))}
         </div>
       </div>
 
       {/* Top LGAs by posts */}
-      <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden">
-        <div className="px-5 py-4 border-b border-white/10 flex items-center gap-2">
-          <TrendingUp className="h-4 w-4 text-green-400" />
-          <h2 className="text-sm font-semibold text-green-200/80">Top LGAs by Content</h2>
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
+          <TrendingUp className="h-4 w-4 text-green-600" />
+          <h2 className="text-sm font-semibold text-slate-700">Top LGAs by Content</h2>
         </div>
         {data.topLgasByPosts.length === 0 ? (
-          <div className="py-10 text-center text-sm text-green-200/40">No data yet</div>
+          <div className="py-10 text-center text-sm text-slate-400">No data yet</div>
         ) : (
-          <div className="divide-y divide-white/5">
+          <div className="divide-y divide-slate-100">
             {data.topLgasByPosts.map((lga, idx) => (
               <div key={lga.id} className="flex items-center gap-4 px-5 py-4">
-                <span className="text-sm font-bold text-green-400/60 w-5 text-center">{idx + 1}</span>
+                <span className="text-sm font-bold text-green-600/70 w-5 text-center">{idx + 1}</span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-white truncate">{lga.lgaName} LGA</p>
-                  <p className="text-xs text-green-200/40 mt-0.5">{lga.state} · {lga.status}</p>
+                  <p className="text-sm font-semibold text-slate-900 truncate">{lga.lgaName} LGA</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{lga.state} · {lga.status}</p>
                 </div>
-                <div className="flex items-center gap-1 text-sm font-bold text-green-300">
-                  <FileText className="h-3.5 w-3.5 text-green-400/60" />
+                <div className="flex items-center gap-1 text-sm font-bold text-green-700">
+                  <FileText className="h-3.5 w-3.5 text-green-600/70" />
                   {lga._count.posts}
                 </div>
               </div>

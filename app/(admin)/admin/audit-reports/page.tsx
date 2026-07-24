@@ -119,10 +119,10 @@ export default function AdminAuditReportsPage() {
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <ClipboardList className="h-5 w-5 text-green-400" />
-            <h1 className="text-2xl font-bold text-white">Audit Reports</h1>
+            <ClipboardList className="h-5 w-5 text-green-600" />
+            <h1 className="text-2xl font-bold text-slate-900">Audit Reports</h1>
           </div>
-          <p className="text-green-200/60 text-sm">{total.toLocaleString()} audit report records</p>
+          <p className="text-slate-500 text-sm">{total.toLocaleString()} audit report records</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
@@ -138,7 +138,7 @@ export default function AdminAuditReportsPage() {
         <input
           type="text" placeholder="Search LGA or report title…"
           value={search} onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-white/20 bg-white/10 text-white placeholder:text-green-200/40 text-sm focus:outline-none focus:border-green-400"
+          className="w-full pl-9 pr-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-800 placeholder:text-slate-400 text-sm focus:outline-none focus:border-green-400"
         />
       </div>
 
@@ -192,13 +192,13 @@ export default function AdminAuditReportsPage() {
 
       {/* Pagination */}
       {Math.ceil(total / PAGE) > 1 && (
-        <div className="mt-5 flex items-center justify-between text-white">
-          <p className="text-sm text-green-200/60">Showing {page * PAGE + 1}–{Math.min((page + 1) * PAGE, total)} of {total}</p>
+        <div className="mt-5 flex items-center justify-between">
+          <p className="text-sm text-slate-500">Showing {page * PAGE + 1}–{Math.min((page + 1) * PAGE, total)} of {total}</p>
           <div className="flex gap-2">
             <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0}
-              className="px-4 py-2 rounded-xl border border-white/20 text-sm disabled:opacity-40 hover:bg-white/10">← Prev</button>
+              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm disabled:opacity-40 hover:bg-slate-50">← Prev</button>
             <button onClick={() => setPage((p) => p + 1)} disabled={(page + 1) * PAGE >= total}
-              className="px-4 py-2 rounded-xl border border-white/20 text-sm disabled:opacity-40 hover:bg-white/10">Next →</button>
+              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm disabled:opacity-40 hover:bg-slate-50">Next →</button>
           </div>
         </div>
       )}

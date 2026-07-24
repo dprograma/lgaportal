@@ -125,15 +125,15 @@ export default function AdminLiveStreamsPage() {
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <Radio className="h-5 w-5 text-green-400" />
-            <h1 className="text-2xl font-bold text-white">Live Streams</h1>
+            <Radio className="h-5 w-5 text-green-600" />
+            <h1 className="text-2xl font-bold text-slate-900">Live Streams</h1>
             {liveCount > 0 && (
               <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-500 text-white text-xs font-bold">
                 <span className="h-1.5 w-1.5 rounded-full bg-white animate-pulse" /> {liveCount} LIVE
               </span>
             )}
           </div>
-          <p className="text-green-200/60 text-sm">{streams.length} total streams</p>
+          <p className="text-slate-500 text-sm">{streams.length} total streams</p>
         </div>
         <button onClick={() => setShowForm(true)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-green-600 hover:bg-green-700 text-white text-sm font-semibold">
