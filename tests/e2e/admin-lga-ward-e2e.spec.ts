@@ -180,6 +180,45 @@ test.describe("GET /api/admin/lgas/export", () => {
     expect(text).toContain("email,lgaName,state");
     expect(text).toContain(lga.email);
   });
+
+  test("?id= exports exactly one row for that LGA, ignoring other filters", async () => {
+    const a = await seedApprovedLGA(ipFor(10));
+    const b = await seedApprovedLGA(ipFor(11));
+    const c = await apiRequest.newContext({ baseURL: BASE });
+
+    const res = await c.get(`/api/admin/lgas/export?id=${a.id}&search=${encodeURIComponent(b.lgaName)}`, { headers: ADMIN });
+    expect(res.status()).toBe(200);
+    const text = await res.text();
+    const dataLines = text.trim().split("\n").slice(1);
+    expect(dataLines).toHaveLength(1);
+    expect(text).toContain(a.email);
+    expect(text).not.toContain(b.email);
+  });
+
+  test("?id= for a nonexistent LGA → 404", async () => {
+    const c = await apiRequest.newContext({ baseURL: BASE });
+    const res = await c.get("/api/admin/lgas/export?id=does-not-exist", { headers: ADMIN });
+    expect(res.status()).toBe(404);
+  });
+
+  test("a downloaded single-record CSV round-trips through PATCH", async () => {
+    const lga = await seedApprovedLGA(ipFor(12));
+    const c = await apiRequest.newContext({ baseURL: BASE });
+
+    const exported = await c.get(`/api/admin/lgas/export?id=${lga.id}`, { headers: ADMIN });
+    const [header, dataLine] = (await exported.text()).trim().split("\n");
+    const cols = header.split(",");
+    const vals = dataLine.split(",");
+    const row = Object.fromEntries(cols.map((k, i) => [k, vals[i]]));
+    row.population = "777000";
+
+    const patch = await c.patch(`/api/admin/lgas/${lga.id}`, {
+      headers: ADMIN,
+      data: { lgaName: row.lgaName, state: row.state, chairmanName: row.chairmanName, phone: row.phone, officeAddress: row.officeAddress, population: row.population },
+    });
+    expect(patch.status()).toBe(200);
+    expect((await patch.json()).lga.population).toBe("777000");
+  });
 });
 
 // ─── Ward: create (single + bulk) ────────────────────────────────────────────
@@ -295,5 +334,38 @@ test.describe("Ward record lifecycle — list, edit, delete, export", () => {
     const text = await res.text();
     expect(text).toContain(lga.lgaName);
     expect(text).toContain("Export Ward");
+  });
+
+  test("?id= exports exactly one ward row and round-trips through PATCH", async () => {
+    const lga = await seedApprovedLGA(ipFor(13));
+    const c = await apiRequest.newContext({ baseURL: BASE });
+    await c.post("/api/admin/wards", {
+      headers: ADMIN,
+      data: { lgaName: lga.lgaName, state: lga.state, wardName: "Solo Ward", councillorName: "Cllr Solo" },
+    });
+    const list = await c.get(`/api/admin/wards?search=${encodeURIComponent(lga.lgaName)}`, { headers: ADMIN });
+    const wardId = (await list.json()).wards[0].id;
+
+    const exported = await c.get(`/api/admin/wards/export?id=${wardId}`, { headers: ADMIN });
+    expect(exported.status()).toBe(200);
+    const [header, dataLine, extra] = (await exported.text()).trim().split("\n");
+    expect(extra).toBeUndefined(); // exactly one data row
+    const cols = header.split(",");
+    const vals = dataLine.split(",");
+    const row = Object.fromEntries(cols.map((k, i) => [k, vals[i]]));
+    expect(row.wardName).toBe("Solo Ward");
+
+    const patch = await c.patch(`/api/admin/wards/${wardId}`, {
+      headers: ADMIN,
+      data: { wardName: row.wardName, councillorName: "Cllr Solo Corrected" },
+    });
+    expect(patch.status()).toBe(200);
+    expect((await patch.json()).ward.councillorName).toBe("Cllr Solo Corrected");
+  });
+
+  test("?id= for a nonexistent ward → 404", async () => {
+    const c = await apiRequest.newContext({ baseURL: BASE });
+    const res = await c.get("/api/admin/wards/export?id=does-not-exist", { headers: ADMIN });
+    expect(res.status()).toBe(404);
   });
 });

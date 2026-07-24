@@ -266,6 +266,8 @@ export default function AdminLGAsPage() {
   const [stateFilter,  setStateFilter]  = useState("");
   const [editId,       setEditId]       = useState<string | null>(null);
   const [showBulk,     setShowBulk]     = useState(false);
+  const [singleUploadId, setSingleUploadId] = useState<string | null>(null);
+  const singleUploadRef = useRef<HTMLInputElement>(null);
   const PAGE = 25;
 
   // Debounce search
@@ -366,6 +368,53 @@ export default function AdminLGAsPage() {
     a.download = `lga-records-${new Date().toISOString().split("T")[0]}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function downloadSingleCsv(id: string) {
+    const res = await fetch(`/api/admin/lgas/export?id=${id}`, { headers: { "x-admin-secret": adminSecret() } });
+    if (!res.ok) { toast.error("Download failed."); return; }
+    const disposition = res.headers.get("Content-Disposition") ?? "";
+    const filename = disposition.match(/filename="(.+)"/)?.[1] ?? `lga-${id}.csv`;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function triggerSingleUpload(id: string) {
+    setSingleUploadId(id);
+    singleUploadRef.current?.click();
+  }
+
+  function handleSingleUploadFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    const id = singleUploadId;
+    e.target.value = "";
+    if (!file || !id) return;
+
+    Papa.parse<Record<string, string>>(file, {
+      header: true, skipEmptyLines: true,
+      complete: async (result) => {
+        const row = result.data[0];
+        if (!row) { toast.error("CSV has no data rows."); return; }
+        const body: Record<string, string> = {};
+        for (const key of ["lgaName", "state", "chairmanName", "phone", "officeAddress", "population", "description", "logoUrl"]) {
+          if (row[key]) body[key] = row[key];
+        }
+        const res = await fetch(`/api/admin/lgas/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json", "x-admin-secret": adminSecret() },
+          body: JSON.stringify(body),
+        });
+        const d = await res.json();
+        if (!res.ok) { toast.error(d.error ?? "Upload failed."); return; }
+        toast.success("LGA record updated from CSV.");
+        fetchLgas();
+      },
+    });
   }
 
   return (
@@ -527,6 +576,20 @@ export default function AdminLGAsPage() {
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
                     <button
+                      onClick={() => downloadSingleCsv(lga.id)}
+                      title="Download this LGA's record as CSV"
+                      className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-700"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => triggerSingleUpload(lga.id)}
+                      title="Upload a CSV to correct this LGA's record"
+                      className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400 hover:text-slate-700"
+                    >
+                      <Upload className="h-3.5 w-3.5" />
+                    </button>
+                    <button
                       onClick={() => setExpandedId(expandedId === lga.id ? null : lga.id)}
                       className="p-1.5 rounded-lg hover:bg-slate-100 transition-colors text-slate-400"
                     >
@@ -644,6 +707,7 @@ export default function AdminLGAsPage() {
       {showBulk && (
         <BulkCorrectModal onClose={() => setShowBulk(false)} onDone={fetchLgas} />
       )}
+      <input ref={singleUploadRef} type="file" accept=".csv" onChange={handleSingleUploadFile} className="hidden" />
     </div>
   );
 }
