@@ -147,7 +147,7 @@ async function seedVerifiedLGA(
   const suffix = uniq();
   const email  = `chairman_${suffix}@example.com`;
   const reg = await request.post("/api/lga/register", {
-    headers: { "x-forwarded-for": ip },
+    headers: { "x-forwarded-for": ip, "x-seed-secret": process.env.SEED_SECRET ?? "" },
     data: {
       lgaName: `Browserville ${suffix}`, state: "Lagos", chairmanName: "Chief Browser",
       email, phone: "08012345678", officeAddress: "1 Council Road, Ikeja",

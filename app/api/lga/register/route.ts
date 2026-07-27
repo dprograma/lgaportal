@@ -6,6 +6,16 @@ import { lgaSignUpSchema } from "@/lib/validations";
 import { generateToken, sanitizeInput } from "@/lib/utils";
 import { sendLGAVerificationEmail } from "@/lib/email";
 
+// Nigeria has exactly 774 Local Government Areas. Once /api/admin/seed has
+// loaded the official 774 (see prisma/seeds/nigeria-lgas.ts), every real
+// registration matches a seeded row by name+state and goes through the
+// "claim" path below (an update, not a create) — so this only ever blocks
+// the "fresh create" branch, which is where anything that isn't one of the
+// 774 official LGAs would otherwise slip in. Test/seed scripts can bypass
+// this with the same secret that guards /api/admin/seed.
+const TOTAL_LGA_CAP = 774;
+const SEED_SECRET = process.env.SEED_SECRET ?? "";
+
 export async function POST(request: Request) {
   // Rate limit: 3 per hour per IP
   const ip = getClientIP(request);
@@ -108,6 +118,20 @@ export async function POST(request: Request) {
         include: { chairman: { select: { id: true } } },
       });
     } else {
+      // No seed record — this would create an LGA that isn't one of
+      // Nigeria's official 774. Blocked unless the request carries the
+      // seed-secret test bypass.
+      const isTestBypass = Boolean(SEED_SECRET) && request.headers.get("x-seed-secret") === SEED_SECRET;
+      if (!isTestBypass) {
+        const totalLgas = await db.lGA.count();
+        if (totalLgas >= TOTAL_LGA_CAP) {
+          return NextResponse.json(
+            { error: "Nigeria has 774 Local Government Areas and that limit has been reached. If your LGA isn't listed, contact support." },
+            { status: 409 }
+          );
+        }
+      }
+
       // No seed record — create fresh
       lga = await db.lGA.create({
         data: {

@@ -64,6 +64,7 @@ async function authedLGA(ip: string): Promise<{ ctx: APIRequestContext; lgaId: s
   const c = await apiRequest.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": ip } });
 
   const reg = await c.post("/api/lga/register", {
+    headers: { "x-seed-secret": process.env.SEED_SECRET ?? "" },
     data: {
       lgaName: `Payville ${suffix}`, state: "Lagos", chairmanName: "Chief Pay",
       email, phone: "08012345678", officeAddress: "1 Pay Road, Ikeja",

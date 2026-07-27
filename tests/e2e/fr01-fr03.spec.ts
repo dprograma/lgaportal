@@ -10,8 +10,11 @@
  */
 
 import { test, expect, request as apiRequest } from "@playwright/test";
+import { Pool } from "pg";
 
 const BASE = "http://localhost:3000";
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+test.afterAll(async () => { await pool.end(); });
 
 async function apiPost(
   url: string,
@@ -36,6 +39,10 @@ async function apiGet(url: string, headers: Record<string, string> = {}) {
 
 
 const ADMIN = { "x-admin-secret": process.env.NEXT_PUBLIC_ADMIN_SECRET ?? "4a0423d4888f73e76fbbb5655ac5458c09be34d5d4eaa9522f943b9cc3d80666" };
+
+// Bypasses the 774-LGA total cap on POST /api/lga/register (see route.ts) —
+// the local test DB accumulates far more than 774 rows across test runs.
+const SEED_HEADER = { "x-seed-secret": process.env.SEED_SECRET ?? "" };
 
 // ─── FR-01-01: Citizen Registration ─────────────────────────────────────────
 
@@ -272,7 +279,7 @@ test.describe("FR-02-01: LGA Registration — API contracts", () => {
       password: "Secure@123",
       confirmPassword: "Secure@123",
       terms: true,
-    });
+    }, SEED_HEADER);
     expect([201, 429]).toContain(status);
     if (status === 201) {
       expect(body.success).toBe(true);
@@ -294,11 +301,11 @@ test.describe("FR-02-01: LGA Registration — API contracts", () => {
       confirmPassword: "Secure@123",
       terms: true,
     };
-    await apiPost("/api/lga/register", { ...base, email: `lga1+${ts}@mailinator.com` });
+    await apiPost("/api/lga/register", { ...base, email: `lga1+${ts}@mailinator.com` }, SEED_HEADER);
     const { status } = await apiPost("/api/lga/register", {
       ...base,
       email: `lga2+${ts}@mailinator.com`,
-    });
+    }, SEED_HEADER);
     // 409 on dup, or 429 if rate-limited (3 per hour)
     expect([409, 429]).toContain(status);
   });
@@ -314,9 +321,76 @@ test.describe("FR-02-01: LGA Registration — API contracts", () => {
       password: "Secure@123",
       confirmPassword: "Secure@123",
       terms: true,
-    });
+    }, SEED_HEADER);
     expect([400, 429]).toContain(status);
     if (status === 400) expect(typeof body.error).toBe("string");
+  });
+});
+
+// ─── 774-LGA total cap guard ────────────────────────────────────────────────
+
+test.describe("774-LGA cap guard on POST /api/lga/register", () => {
+  test("a fresh LGA create is blocked once the total reaches 774, but the seed-secret bypass still works", async () => {
+    const { rows } = await pool.query("SELECT count(*)::int AS count FROM lgas");
+    test.skip(rows[0].count < 774, "local DB has fewer than 774 LGAs; the cap hasn't kicked in yet");
+
+    const ctx = await apiRequest.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { "x-forwarded-for": `198.30.${Math.floor(Math.random() * 254) + 1}.1` },
+    });
+    const ts = Date.now();
+    const payload = (suffix: string) => ({
+      lgaName: `Cap Guard Test ${ts}${suffix}`,
+      state: "Lagos",
+      chairmanName: "Cap Guard Tester",
+      email: `cap-guard-${ts}${suffix}@mailinator.com`,
+      phone: "08012345678",
+      officeAddress: "1 Cap Guard Road",
+      sectors: ["Health"],
+      password: "Secure@123",
+      confirmPassword: "Secure@123",
+      terms: true,
+    });
+
+    const blocked = await ctx.post("/api/lga/register", { data: payload("a") });
+    expect(blocked.status()).toBe(409);
+    expect((await blocked.json()).error).toMatch(/774/);
+
+    const bypassed = await ctx.post("/api/lga/register", {
+      data: payload("b"),
+      headers: SEED_HEADER,
+    });
+    expect(bypassed.status()).toBe(201);
+  });
+
+  test("claiming an already-seeded LGA (no chairman yet) is never blocked by the cap", async () => {
+    const suffix = `${Date.now()}${Math.floor(Math.random() * 1000)}`;
+    const lgaName = `Seed Claim Test ${suffix}`;
+    await pool.query(
+      `INSERT INTO lgas (id, "lgaName", state, "chairmanName", email, phone, "officeAddress", status, "isVerified", sectors, "createdAt", "updatedAt")
+       VALUES ($1, $2, 'Ogun', 'Vacant', $3, '08000000000', 'N/A', 'APPROVED', true, ARRAY[]::text[], now(), now())`,
+      [`captest${suffix}`.slice(0, 25), lgaName, `vacant-${suffix}@lga.gov.ng`]
+    );
+
+    const ctx = await apiRequest.newContext({
+      baseURL: BASE,
+      extraHTTPHeaders: { "x-forwarded-for": `198.31.${Math.floor(Math.random() * 254) + 1}.1` },
+    });
+    const claim = await ctx.post("/api/lga/register", {
+      data: {
+        lgaName,
+        state: "Ogun",
+        chairmanName: "Real Chairman",
+        email: `real-chairman-${suffix}@mailinator.com`,
+        phone: "08012345678",
+        officeAddress: "1 Real Street",
+        sectors: ["Health"],
+        password: "Secure@123",
+        confirmPassword: "Secure@123",
+        terms: true,
+      },
+    });
+    expect(claim.status()).toBe(201);
   });
 });
 
