@@ -369,4 +369,67 @@ test.describe("Ward record lifecycle — list, edit, delete, export", () => {
     const res = await c.get("/api/admin/wards/export?id=does-not-exist", { headers: ADMIN });
     expect(res.status()).toBe(404);
   });
+
+  test("?lgaId= exports every ward for that LGA only, not the whole table", async () => {
+    const lgaA = await seedApprovedLGA(ipFor(14));
+    const lgaB = await seedApprovedLGA(ipFor(15));
+    const c = await apiRequest.newContext({ baseURL: BASE });
+
+    await c.post("/api/admin/wards", {
+      headers: ADMIN,
+      data: [
+        { lgaName: lgaA.lgaName, state: lgaA.state, wardName: "A Ward One", councillorName: "Cllr A1" },
+        { lgaName: lgaA.lgaName, state: lgaA.state, wardName: "A Ward Two", councillorName: "Cllr A2" },
+        { lgaName: lgaB.lgaName, state: lgaB.state, wardName: "B Ward One", councillorName: "Cllr B1" },
+      ],
+    });
+
+    const exported = await c.get(`/api/admin/wards/export?lgaId=${lgaA.id}`, { headers: ADMIN });
+    expect(exported.status()).toBe(200);
+    expect(exported.headers()["content-disposition"]).toContain(`wards-${lgaA.lgaName.replace(/\s+/g, "-").toLowerCase()}`);
+
+    const lines = (await exported.text()).trim().split("\n");
+    expect(lines).toHaveLength(3); // header + 2 rows, lgaB's ward excluded
+    expect(lines.join("\n")).toContain("A Ward One");
+    expect(lines.join("\n")).toContain("A Ward Two");
+    expect(lines.join("\n")).not.toContain("B Ward One");
+
+    // Round-trips through the bulk import endpoint, updating only that LGA's wards.
+    const reimport = await c.post("/api/admin/wards", {
+      headers: ADMIN,
+      data: [
+        { lgaName: lgaA.lgaName, state: lgaA.state, wardName: "A Ward One", councillorName: "Cllr A1 Corrected" },
+        { lgaName: lgaA.lgaName, state: lgaA.state, wardName: "A Ward Two", councillorName: "Cllr A2 Corrected" },
+      ],
+    });
+    expect(reimport.status()).toBe(201);
+    expect((await reimport.json()).created).toBe(2);
+
+    const { rows } = await pool.query(
+      `SELECT "councillorName" FROM wards WHERE "lgaId" = $1 ORDER BY "wardName"`,
+      [lgaB.id]
+    );
+    expect(rows[0].councillorName, "the other LGA's ward must be untouched").toBe("Cllr B1");
+  });
+
+  test("GET /api/admin/wards?lgaId= filters the list to that LGA only", async () => {
+    const lgaA = await seedApprovedLGA(ipFor(16));
+    const lgaB = await seedApprovedLGA(ipFor(17));
+    const c = await apiRequest.newContext({ baseURL: BASE });
+
+    await c.post("/api/admin/wards", {
+      headers: ADMIN,
+      data: [
+        { lgaName: lgaA.lgaName, state: lgaA.state, wardName: "Filter Ward A", councillorName: "Cllr FA" },
+        { lgaName: lgaB.lgaName, state: lgaB.state, wardName: "Filter Ward B", councillorName: "Cllr FB" },
+      ],
+    });
+
+    const list = await c.get(`/api/admin/wards?lgaId=${lgaA.id}`, { headers: ADMIN });
+    expect(list.status()).toBe(200);
+    const body = await list.json();
+    expect(body.wards.every((w: { lga: { lgaName: string } }) => w.lga.lgaName === lgaA.lgaName)).toBe(true);
+    expect(body.wards.some((w: { wardName: string }) => w.wardName === "Filter Ward A")).toBe(true);
+    expect(body.wards.some((w: { wardName: string }) => w.wardName === "Filter Ward B")).toBe(false);
+  });
 });
