@@ -65,7 +65,7 @@ async function seedPendingLGA(request: APIRequestContext, ip: string): Promise<{
   const email   = `chairman_adm_${suffix}@example.com`;
 
   const reg = await request.post("/api/lga/register", {
-    headers: { "x-forwarded-for": ip },
+    headers: { "x-forwarded-for": ip, "x-seed-secret": process.env.SEED_SECRET ?? "" },
     data: {
       lgaName, state: "Kano", chairmanName: "Alhaji Admin",
       email, phone: "08011223344", officeAddress: "3 Council Close, Kano",

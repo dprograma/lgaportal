@@ -64,6 +64,7 @@ async function authedLGA(ip: string): Promise<{ ctx: APIRequestContext; lgaId: s
   const ctx = await ctxForIp(ip);
 
   const reg = await ctx.post("/api/lga/register", {
+    headers: { "x-seed-secret": process.env.SEED_SECRET ?? "" },
     data: {
       lgaName: `Portalville ${suffix}`, state: "Lagos", chairmanName: "Chief Portal",
       email, phone: "08012345678", officeAddress: "1 Council Road, Ikeja",

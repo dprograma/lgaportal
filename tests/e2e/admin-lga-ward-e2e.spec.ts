@@ -53,6 +53,7 @@ async function seedApprovedLGA(ip: string): Promise<{ id: string; email: string;
   const ctx = await apiRequest.newContext({ baseURL: BASE, extraHTTPHeaders: { "x-forwarded-for": ip } });
 
   const reg = await ctx.post("/api/lga/register", {
+    headers: { "x-seed-secret": process.env.SEED_SECRET ?? "" },
     data: {
       lgaName, state, chairmanName: "Chief Record", email, phone: "08012345678",
       officeAddress: "1 Record Road, Ikeja", sectors: ["Health"],

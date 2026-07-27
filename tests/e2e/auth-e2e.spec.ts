@@ -263,7 +263,10 @@ test.describe("Auth E2E — LGA Chairman", () => {
 
   test("registration → 201 with lgaId", async () => {
     const ctx = await ctxForIp(IP);
-    const res = await ctx.post("/api/lga/register", { data: registrationPayload });
+    const res = await ctx.post("/api/lga/register", {
+      data: registrationPayload,
+      headers: { "x-seed-secret": process.env.SEED_SECRET ?? "" },
+    });
     expect(res.status()).toBe(201);
     const body = await res.json();
     expect(body.success).toBe(true);
@@ -309,6 +312,7 @@ test.describe("Auth E2E — LGA Chairman", () => {
     const ctx = await ctxForIp(IP);
     const res = await ctx.post("/api/lga/register", {
       data: { ...registrationPayload, lgaName: `${lgaName} Two` },
+      headers: { "x-seed-secret": process.env.SEED_SECRET ?? "" },
     });
     expect(res.status()).toBe(409);
   });

@@ -68,7 +68,7 @@ async function seedApprovedLGAWithEndowment(
 
   // 1. Register
   const reg = await request.post("/api/lga/register", {
-    headers: { "x-forwarded-for": ip },
+    headers: { "x-forwarded-for": ip, "x-seed-secret": process.env.SEED_SECRET ?? "" },
     data: {
       lgaName, state: "Lagos", chairmanName: "Chief Investor",
       email, phone: "08012345678", officeAddress: "2 Investment Road, Ikeja",
