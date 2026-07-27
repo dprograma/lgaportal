@@ -21,13 +21,15 @@ export async function GET(req: NextRequest) {
   if (!isAdminRequest(req)) return NextResponse.json({ error: "Unauthorized." }, { status: 401 });
 
   const { searchParams } = new URL(req.url);
+  const lgaId  = searchParams.get("lgaId")  ?? undefined;
   const state  = searchParams.get("state")  ?? undefined;
   const search = searchParams.get("search") ?? undefined; // matches ward name or LGA name
   const limit  = Math.min(Number(searchParams.get("limit")  ?? "30"), 200);
   const offset = Number(searchParams.get("offset") ?? "0");
 
   const where: Record<string, unknown> = {};
-  if (state)  where.lga = { state: { equals: state, mode: "insensitive" } };
+  if (lgaId)  where.lgaId = lgaId;
+  else if (state) where.lga = { state: { equals: state, mode: "insensitive" } };
   if (search) {
     where.OR = [
       { wardName: { contains: search, mode: "insensitive" } },

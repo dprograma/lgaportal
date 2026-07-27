@@ -324,20 +324,36 @@ export default function AdminWardsPage() {
 
   const [filterState, setFilterState] = useState("");
   const [search,       setSearch]      = useState("");
+  const [lgaOptions,   setLgaOptions]  = useState<{ id: string; lgaName: string }[]>([]);
+  const [filterLgaId,  setFilterLgaId] = useState("");
 
   const fetchWards = useCallback(async () => {
     setLoading(true);
     const p = new URLSearchParams({ limit: String(LIMIT), offset: String(page * LIMIT) });
-    if (filterState) p.set("state", filterState);
+    if (filterLgaId)      p.set("lgaId", filterLgaId);
+    else if (filterState) p.set("state", filterState);
     if (search)      p.set("search", search);
     const r = await fetch(`/api/admin/wards?${p}`, { headers: { "x-admin-secret": getAdminSecret() } });
     const d = await r.json();
     setWards(d.wards ?? []);
     setTotal(d.total ?? 0);
     setLoading(false);
-  }, [page, filterState, search]);
+  }, [page, filterState, filterLgaId, search]);
 
   useEffect(() => { fetchWards(); }, [fetchWards]);
+
+  // Populate the LGA picker for the selected state (LGAs are only fetchable
+  // scoped to a state — there are 774+ of them, too many for one dropdown).
+  // filterLgaId is reset by the state <select>'s onChange, not here.
+  useEffect(() => {
+    if (!filterState) return;
+    (async () => {
+      const p = new URLSearchParams({ state: filterState, limit: "100" });
+      const r = await fetch(`/api/admin/lgas?${p}`, { headers: { "x-admin-secret": getAdminSecret() } });
+      const d = await r.json();
+      setLgaOptions((d.lgas ?? []).map((l: { id: string; lgaName: string }) => ({ id: l.id, lgaName: l.lgaName })));
+    })();
+  }, [filterState]);
 
   function showToast(msg: string) { setToast(msg); setTimeout(() => setToast(""), 3000); }
 
@@ -352,14 +368,17 @@ export default function AdminWardsPage() {
 
   async function exportCsv() {
     const p = new URLSearchParams();
-    if (filterState) p.set("state", filterState);
+    if (filterLgaId)      p.set("lgaId", filterLgaId);
+    else if (filterState) p.set("state", filterState);
     const res = await fetch(`/api/admin/wards/export?${p}`, { headers: { "x-admin-secret": getAdminSecret() } });
     if (!res.ok) { showToast("Export failed."); return; }
+    const disposition = res.headers.get("Content-Disposition") ?? "";
+    const filename = disposition.match(/filename="(.+)"/)?.[1] ?? `ward-records-${new Date().toISOString().split("T")[0]}.csv`;
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `ward-records-${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -413,6 +432,7 @@ export default function AdminWardsPage() {
   }
 
   const pages = Math.ceil(total / LIMIT);
+  const selectedLgaName = lgaOptions.find((l) => l.id === filterLgaId)?.lgaName;
 
   return (
     <div className="p-4 sm:p-6 max-w-6xl mx-auto">
@@ -425,9 +445,10 @@ export default function AdminWardsPage() {
         <div className="flex gap-2">
           <button
             onClick={exportCsv}
+            title={selectedLgaName ? `Export wards for ${selectedLgaName} only` : "Export wards for every LGA"}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:border-slate-300 transition-colors"
           >
-            <Download className="h-3.5 w-3.5" /> Export CSV
+            <Download className="h-3.5 w-3.5" /> {selectedLgaName ? `Export CSV — ${selectedLgaName}` : "Export CSV"}
           </button>
           <button
             onClick={() => setShowCSV(true)}
@@ -449,10 +470,22 @@ export default function AdminWardsPage() {
         <div className="relative">
           <select
             value={filterState}
-            onChange={(e) => { setFilterState(e.target.value); setPage(0); }}
+            onChange={(e) => { setFilterState(e.target.value); setFilterLgaId(""); setLgaOptions([]); setPage(0); }}
             className="appearance-none bg-white border border-slate-200 rounded-lg pl-3 pr-8 py-1.5 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-green-500"
           >
             {ALL_STATES.map((s) => <option key={s} value={s}>{s || "All States"}</option>)}
+          </select>
+          <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+        </div>
+        <div className="relative">
+          <select
+            value={filterLgaId}
+            onChange={(e) => { setFilterLgaId(e.target.value); setPage(0); }}
+            disabled={!filterState}
+            className="appearance-none bg-white border border-slate-200 rounded-lg pl-3 pr-8 py-1.5 text-sm text-slate-700 outline-none focus:ring-2 focus:ring-green-500 disabled:bg-slate-50 disabled:text-slate-400 min-w-40"
+          >
+            <option value="">{filterState ? "All LGAs" : "Select a state first"}</option>
+            {lgaOptions.map((l) => <option key={l.id} value={l.id}>{l.lgaName}</option>)}
           </select>
           <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
         </div>
