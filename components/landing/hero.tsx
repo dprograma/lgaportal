@@ -38,13 +38,19 @@ function CountUp({ end, suffix, started }: { end: number; suffix: string; starte
   return <span>{current.toLocaleString()}{suffix}</span>;
 }
 
-// ─── Data ─────────────────────────────────────────────────────────────────────
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-const counters = [
-  { value: 12847, suffix: "+", label: "Registered Citizens",   icon: Users      },
-  { value: 142,   suffix: "",  label: "LGAs Showcasing",       icon: Building2  },
-  { value: 1893,  suffix: "+", label: "Projects Published",    icon: BarChart2  },
-];
+interface ActivityData {
+  feed: { text: string; time: string }[];
+  topLga: { lgaName: string; state: string } | null;
+  approvedLGAs: number;
+}
+
+interface PlatformStats {
+  totalUsers: number;
+  approvedLGAs: number;
+  totalProjects: number;
+}
 
 const trustBadges = [
   "Attract real investors",
@@ -53,20 +59,37 @@ const trustBadges = [
   "Free for citizens",
 ];
 
-const activityFeed = [
-  { text: "Investor inquiry received — Udi LGA mineral endowment", time: "3m ago" },
-  { text: "Birnin Kebbi LGA published new agriculture investment profile", time: "11m ago" },
-  { text: "Road project completed & praised in Lagos Island LGA", time: "18m ago" },
-];
-
 // ─── Hero ─────────────────────────────────────────────────────────────────────
 
 export default function Hero() {
   const counterRef = useRef<HTMLDivElement>(null);
   const inView = useInView(counterRef, { once: true, margin: "-80px" });
 
+  const [activity, setActivity] = useState<ActivityData | null>(null);
+  const [stats, setStats]       = useState<PlatformStats | null>(null);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/public/activity").then((r) => r.json()),
+      fetch("/api/public/stats").then((r) => r.json()),
+    ]).then(([act, st]) => {
+      setActivity(act);
+      setStats(st);
+    }).catch(() => {});
+  }, []);
+
+  const counters = [
+    { value: stats?.totalUsers    ?? 0, suffix: "+", label: "Registered Citizens",  icon: Users     },
+    { value: stats?.approvedLGAs  ?? 0, suffix: "",  label: "LGAs Showcasing",      icon: Building2 },
+    { value: stats?.totalProjects ?? 0, suffix: "+", label: "Projects Published",   icon: BarChart2 },
+  ];
+
+  const feed        = activity?.feed ?? [];
+  const topLga      = activity?.topLga ?? null;
+  const lgaCount    = activity?.approvedLGAs ?? 0;
+
   return (
-    <section className="relative min-h-[92vh] bg-white overflow-hidden pt-28 lg:pt-36">
+    <section className="relative min-h-[88vh] bg-white overflow-hidden pt-20 lg:pt-24">
       {/* Background decorative elements */}
       <div className="absolute top-0 right-0 w-[700px] h-[700px] bg-gradient-to-bl from-green-100/80 via-green-50/40 to-transparent rounded-bl-[120px] pointer-events-none" />
       <div
@@ -84,8 +107,9 @@ export default function Hero() {
       </div>
 
       {/* Content */}
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
         <div className="flex flex-col lg:flex-row items-center gap-12 lg:gap-8">
+
           {/* Left column */}
           <div className="lg:w-3/5 flex flex-col">
             {/* Announcement chip */}
@@ -176,7 +200,7 @@ export default function Hero() {
               {counters.map(({ value, suffix, label, icon: Icon }) => (
                 <div key={label} className="flex flex-col gap-1">
                   <span className="text-3xl font-extrabold text-slate-900">
-                    <CountUp end={value} suffix={suffix} started={inView} />
+                    {stats ? <CountUp end={value} suffix={suffix} started={inView} /> : "—"}
                   </span>
                   <span className="text-xs text-slate-500 flex items-center gap-1">
                     <Icon className="h-3.5 w-3.5 text-green-600 shrink-0" />
@@ -187,7 +211,7 @@ export default function Hero() {
             </motion.div>
           </div>
 
-          {/* Right column: live dashboard mockup */}
+          {/* Right column: live activity card */}
           <motion.div
             initial={{ opacity: 0, x: 40 }}
             animate={{ opacity: 1, x: 0 }}
@@ -210,20 +234,32 @@ export default function Hero() {
                   <div className="absolute inset-0 opacity-10" style={{ backgroundImage: "radial-gradient(circle, white 1px, transparent 1px)", backgroundSize: "18px 18px" }} />
                   <Gem className="h-8 w-8 text-green-300 mb-1.5" />
                   <span className="text-xs text-green-200 font-semibold">Endowment Showcase</span>
-                  <span className="text-[10px] text-green-400/70 mt-0.5">312+ LGAs Listed</span>
+                  <span className="text-[10px] text-green-400/70 mt-0.5">
+                    {lgaCount > 0 ? `${lgaCount}+ LGAs Listed` : "LGAs Listed"}
+                  </span>
                 </div>
 
                 {/* Activity feed */}
-                <div className="space-y-3">
-                  {activityFeed.map((item, i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <div className="h-1.5 w-1.5 rounded-full bg-green-500 mt-1.5 shrink-0" />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-slate-700 font-medium leading-snug">{item.text}</p>
-                        <p className="text-[11px] text-slate-400 mt-0.5">{item.time}</p>
-                      </div>
-                    </div>
-                  ))}
+                <div className="space-y-3 min-h-[80px]">
+                  {feed.length > 0
+                    ? feed.map((item, i) => (
+                        <div key={i} className="flex items-start gap-3">
+                          <div className="h-1.5 w-1.5 rounded-full bg-green-500 mt-1.5 shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-slate-700 font-medium leading-snug line-clamp-2">{item.text}</p>
+                            <p className="text-[11px] text-slate-400 mt-0.5">{item.time}</p>
+                          </div>
+                        </div>
+                      ))
+                    : Array.from({ length: 3 }).map((_, i) => (
+                        <div key={i} className="flex items-start gap-3 animate-pulse">
+                          <div className="h-1.5 w-1.5 rounded-full bg-slate-200 mt-1.5 shrink-0" />
+                          <div className="flex-1 space-y-1">
+                            <div className="h-3 bg-slate-100 rounded w-full" />
+                            <div className="h-2.5 bg-slate-100 rounded w-1/3" />
+                          </div>
+                        </div>
+                      ))}
                 </div>
               </div>
 
@@ -238,13 +274,13 @@ export default function Hero() {
                     <TrendingUp className="h-3.5 w-3.5 text-green-600" />
                   </div>
                   <div>
-                    <p className="text-xs font-semibold text-slate-900 whitespace-nowrap">₦2B Inquiry Received</p>
+                    <p className="text-xs font-semibold text-slate-900 whitespace-nowrap">New Activity</p>
                     <p className="text-[10px] text-slate-400">Just now</p>
                   </div>
                 </div>
               </motion.div>
 
-              {/* Floating badge bottom-left */}
+              {/* Floating badge bottom-left — real top LGA */}
               <motion.div
                 animate={{ y: [0, -8, 0] }}
                 transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
@@ -256,12 +292,15 @@ export default function Hero() {
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-slate-900 whitespace-nowrap">Top Performing LGA</p>
-                    <p className="text-[10px] text-slate-400">Enugu North · Q1 2025</p>
+                    <p className="text-[10px] text-slate-400">
+                      {topLga ? `${topLga.lgaName} · ${topLga.state}` : "Loading…"}
+                    </p>
                   </div>
                 </div>
               </motion.div>
             </div>
           </motion.div>
+
         </div>
       </div>
     </section>
