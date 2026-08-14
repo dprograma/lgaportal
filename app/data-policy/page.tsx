@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Database, ArrowLeft } from "lucide-react";
+import { ArrowLeft, Database } from "lucide-react";
 
 export const metadata = { title: "Data Policy – 774ng.com LGA Portal" };
 
@@ -17,109 +17,74 @@ export default function DataPolicyPage() {
             </div>
             <h1 className="text-2xl font-bold text-slate-900">Data Policy</h1>
           </div>
-          <p className="text-sm text-slate-500">Effective Date: <strong>1 July 2026</strong> · Applies to all Platform users</p>
+          <p className="text-sm text-slate-500">Effective Date: <strong>1 July 2026</strong> · Supplementary to our <Link href="/privacy" className="text-green-700 underline">Privacy Policy</Link></p>
         </div>
       </div>
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10 space-y-10">
 
-        <p className="text-sm text-slate-600 leading-relaxed bg-green-50 border border-green-200 rounded-xl p-5">
-          This Data Policy explains specifically how 774ng.com collects, processes, stores, and
-          protects data on the Platform. For the full statement of your rights as a data subject
-          under the Nigeria Data Protection Act 2023, see our{" "}
-          <Link href="/privacy" className="text-green-700 underline">Privacy Policy</Link>.
-        </p>
-
-        <Section title="1. Data We Store">
-          <ul className="list-disc pl-5 space-y-2">
-            <li><strong>User accounts:</strong> name, email, hashed password (bcrypt), phone, state/LGA of residence.</li>
-            <li><strong>LGA profiles:</strong> LGA name, state, chairman details, office address, population, description, logo.</li>
-            <li><strong>Projects:</strong> title, description, category, budget, status, timeline, published documents.</li>
-            <li><strong>Endowments:</strong> resource category, title, description, highlights, investment range.</li>
-            <li><strong>Allocations:</strong> federal allocation amounts, periods, breakdowns (sourced from official extracts).</li>
-            <li><strong>Feedback & reports:</strong> message text, rating, category, timestamp — linked to user account.</li>
-            <li><strong>Investor inquiries:</strong> message text, sector, contact info — linked to investor account and LGA.</li>
-            <li><strong>Press releases:</strong> title, body, issuing entity, attachment URL, approval status.</li>
-            <li><strong>Server logs:</strong> IP address, user-agent, request path, timestamp — retained for 90 days.</li>
-          </ul>
+        <Section title="1. What Is This Document?">
+          <p>This Data Policy supplements our Privacy Policy with specific details about how LGA data, allocation figures, project data, and citizen feedback are collected, stored, processed, and made available on the 774ng.com platform. It is intended for LGA administrators, researchers, civil society organisations, and developers who interact with platform data.</p>
         </Section>
 
-        <Section title="2. How Data Flows">
-          <ul className="list-disc pl-5 space-y-2">
-            <li>All data is transmitted over HTTPS (TLS 1.2+). No data is sent in plain HTTP.</li>
-            <li>Passwords are never stored in plain text. Only a bcrypt hash is stored.</li>
-            <li>LGA identifiers are stored in the browser&apos;s <code className="text-xs bg-slate-100 px-1 rounded">sessionStorage</code> after successful OTP verification — not in cookies — and cleared when the browser tab is closed.</li>
-            <li>Admin sessions use an <code className="text-xs bg-slate-100 px-1 rounded">HttpOnly</code>, <code className="text-xs bg-slate-100 px-1 rounded">Secure</code> cookie that cannot be accessed by JavaScript.</li>
-            <li>Payment transactions are processed by Paystack. We store only the transaction reference and amount — never card details.</li>
-          </ul>
-        </Section>
-
-        <Section title="3. Data Retention">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs border-collapse mt-2">
-              <thead>
-                <tr className="bg-slate-100">
-                  <th className="px-3 py-2 text-left font-semibold text-slate-700 border border-slate-200">Data Type</th>
-                  <th className="px-3 py-2 text-left font-semibold text-slate-700 border border-slate-200">Retention Period</th>
-                </tr>
-              </thead>
-              <tbody className="text-slate-600">
-                {[
-                  ["Active account data", "Duration of account"],
-                  ["Deleted account data", "30 days after deletion request"],
-                  ["Payment records", "7 years (financial regulation)"],
-                  ["Server access logs", "90 days"],
-                  ["Analytics (anonymised)", "Indefinitely (cannot identify you)"],
-                  ["OTP codes", "10 minutes from issue"],
-                  ["Investor inquiry records", "3 years after submission"],
-                ].map(([type, period]) => (
-                  <tr key={type} className="even:bg-slate-50">
-                    <td className="px-3 py-2 border border-slate-200">{type}</td>
-                    <td className="px-3 py-2 border border-slate-200">{period}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </Section>
-
-        <Section title="4. Third-Party Data Processors">
-          <p>We share data with the following processors, each bound by data processing agreements:</p>
+        <Section title="2. LGA Data">
+          <p>LGA profile data (LGA name, state, chairman name, office address, description, endowments, and project listings) is provided directly by verified LGA administrators. The Platform:</p>
           <ul className="list-disc pl-5 mt-3 space-y-1.5">
-            <li><strong>Hosting provider:</strong> server infrastructure and database hosting.</li>
-            <li><strong>Email delivery:</strong> OTP and transactional emails are sent via an authorised email service provider.</li>
-            <li><strong>Paystack:</strong> payment processing for LGA subscriptions.</li>
-          </ul>
-          <p className="mt-3">We do not share data with advertising networks, data brokers, or social media platforms.</p>
-        </Section>
-
-        <Section title="5. Data Security Measures">
-          <ul className="list-disc pl-5 space-y-1.5">
-            <li>HTTPS enforced on all routes; HTTP requests are redirected.</li>
-            <li>Database access is restricted to application server processes only — no direct public access.</li>
-            <li>Admin authentication uses a combination of a secret cookie and server-side session validation.</li>
-            <li>LGA authentication uses time-limited OTPs (10-minute expiry) delivered to registered emails.</li>
-            <li>All file uploads are stored in a private bucket; access requires a signed URL.</li>
-            <li>Security reviews of API endpoints are conducted periodically.</li>
+            <li>Displays this data publicly to facilitate transparency and investment.</li>
+            <li>Does not independently verify the accuracy of endowment values, project budgets, or completion claims.</li>
+            <li>Reserves the right to remove data that is flagged as inaccurate by citizens or found to violate our Terms of Service.</li>
           </ul>
         </Section>
 
-        <Section title="6. Your Data Rights">
-          <p>Under the Nigeria Data Protection Act 2023, you may request access to, correction of, or deletion of your data at any time. Contact our Data Officer at{" "}
-            <a href="mailto:privacy@774ng.com" className="text-green-700 underline">privacy@774ng.com</a>.
-            We will respond within 30 days.
-          </p>
+        <Section title="3. Federal Allocation Data">
+          <p>Federal allocation figures displayed on the Platform are derived from publicly available government sources and gazette publications. We do not receive official data feeds from the Federation Account Allocation Committee (FAAC). Users should cross-reference allocation data with official FAAC publications. Allocation data is updated periodically and may not reflect the most current disbursements.</p>
         </Section>
 
-        <Section title="7. Questions">
-          <p>For technical data questions not covered here, email <a href="mailto:privacy@774ng.com" className="text-green-700 underline">privacy@774ng.com</a>. For platform support, email <a href="mailto:support@774ng.com" className="text-green-700 underline">support@774ng.com</a>.</p>
+        <Section title="4. Citizen and Feedback Data">
+          <p>Feedback, issue reports, and reactions submitted by citizens are associated with the submitting account. The following visibility rules apply:</p>
+          <ul className="list-disc pl-5 mt-3 space-y-1.5">
+            <li><strong>LGA administrators</strong> can see the citizen&apos;s name, LGA, and feedback text. They cannot see the citizen&apos;s email or phone number.</li>
+            <li><strong>Other citizens</strong> cannot see who submitted specific feedback items.</li>
+            <li><strong>Aggregated, anonymised feedback</strong> (e.g. average rating for an LGA) is publicly visible.</li>
+          </ul>
+        </Section>
+
+        <Section title="5. Data Exports">
+          <p>LGA administrators and platform admins may export data in XLSX format for their own governance records. Exported files:</p>
+          <ul className="list-disc pl-5 mt-3 space-y-1.5">
+            <li>Contain only data the exporter is authorised to access.</li>
+            <li>Must not be shared publicly or used for commercial purposes without prior written consent from the Platform.</li>
+            <li>Are watermarked with the Platform name, export date, and scope for audit trail purposes.</li>
+          </ul>
+        </Section>
+
+        <Section title="6. Data Retention">
+          <p>See our <Link href="/privacy#7" className="text-green-700 underline">Privacy Policy §7</Link> for full retention schedules. In summary:</p>
+          <ul className="list-disc pl-5 mt-3 space-y-1.5">
+            <li>Active account data: retained indefinitely while the account is active.</li>
+            <li>Deleted account data: purged within 30 days of deletion request.</li>
+            <li>Payment records: retained 7 years (Nigerian financial regulation).</li>
+            <li>Server/access logs: 90 days.</li>
+          </ul>
+        </Section>
+
+        <Section title="7. Open Data Commitment">
+          <p>We are committed to open governance data. Aggregate, non-personal platform statistics (total LGAs, total projects, total endowments, etc.) are freely available through our public API and are updated regularly. We do not charge for access to aggregate open data.</p>
+        </Section>
+
+        <Section title="8. API Access">
+          <p>Public API endpoints (documented at <Link href="/docs/api" className="text-green-700 underline">/docs/api</Link>) allow programmatic access to non-personal platform data. Authenticated API access for LGA administrators and developers requires an API key, which is available from the LGA dashboard settings. Automated scraping of the Platform without a valid API key is prohibited.</p>
+        </Section>
+
+        <Section title="9. Contact">
+          <p>For data-specific queries, right-to-access requests, or erasure requests: <a href="mailto:privacy@774ng.com" className="text-green-700 underline">privacy@774ng.com</a></p>
         </Section>
 
         <div className="border-t border-slate-200 pt-6 flex flex-wrap gap-4 text-sm text-slate-500">
           <Link href="/privacy" className="hover:text-green-700 transition-colors">Privacy Policy</Link>
-          <Link href="/terms" className="hover:text-green-700 transition-colors">Terms of Service</Link>
+          <Link href="/terms"   className="hover:text-green-700 transition-colors">Terms of Service</Link>
           <Link href="/cookies" className="hover:text-green-700 transition-colors">Cookie Policy</Link>
-          <Link href="/" className="hover:text-green-700 transition-colors">Back to Home</Link>
+          <Link href="/"        className="hover:text-green-700 transition-colors">Back to Home</Link>
         </div>
       </div>
     </div>

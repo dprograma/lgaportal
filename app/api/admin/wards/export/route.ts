@@ -67,45 +67,55 @@ export async function GET(req: NextRequest) {
   // ── Row 1: Title banner ────────────────────────────────────────────────────
   sheet.mergeCells(1, 1, 1, COLS.length);
   const titleCell = sheet.getCell("A1");
-  titleCell.value = "🇳🇬  774ng.com — Ward Records Export";
+  titleCell.value = "🇳🇬  774ng.com LGA Citizen Portal — Official Ward Records";
   titleCell.font  = { bold: true, size: 16, color: { argb: WHITE } };
   titleCell.fill  = { type: "pattern", pattern: "solid", fgColor: { argb: GREEN } };
   titleCell.alignment = { horizontal: "center", vertical: "middle" };
-  sheet.getRow(1).height = 36;
+  sheet.getRow(1).height = 40;
 
-  // ── Row 2: Metadata banner ─────────────────────────────────────────────────
+  // ── Row 2: Document purpose ────────────────────────────────────────────────
   sheet.mergeCells(2, 1, 2, COLS.length);
-  const metaCell = sheet.getCell("A2");
+  const purposeCell = sheet.getCell("A2");
+  purposeCell.value = "PURPOSE: This file contains ward and councillor records exported from the 774ng.com platform. Use for administrative records, bulk ward import (Admin → Wards → Import CSV), or councillor directory management. Do not share publicly.";
+  purposeCell.font  = { bold: false, size: 9, color: { argb: "1E3A5F" } };
+  purposeCell.fill  = { type: "pattern", pattern: "solid", fgColor: { argb: "DBEAFE" } };
+  purposeCell.alignment = { horizontal: "left", vertical: "middle", wrapText: true };
+  sheet.getRow(2).height = 32;
+
+  // ── Row 3: Metadata banner ─────────────────────────────────────────────────
+  sheet.mergeCells(3, 1, 3, COLS.length);
+  const metaCell = sheet.getCell("A3");
   const dateStr  = new Date().toLocaleDateString("en-NG", { day: "2-digit", month: "long", year: "numeric" });
   const scope    = id          ? `Ward: ${rows[0]?.wardName ?? id}`
                  : lgaId && rows.length > 0 ? `LGA: ${rows[0].lgaName}`
                  : state       ? `State: ${state}`
                  : "All Wards";
-  metaCell.value = `Exported on ${dateStr}  ·  ${rows.length} ward record${rows.length !== 1 ? "s" : ""}  ·  Scope: ${scope}  ·  Sorted by State → LGA → Ward Number`;
-  metaCell.font  = { italic: true, size: 10, color: { argb: "365314" } };
+  metaCell.value = `📅 Exported: ${dateStr}   |   📊 Records: ${rows.length} ward${rows.length !== 1 ? "s" : ""}   |   📌 Scope: ${scope}   |   🔀 Sorted: State → LGA → Ward No.   |   🌐 Source: 774ng.com`;
+  metaCell.font  = { italic: true, size: 9, color: { argb: "365314" } };
   metaCell.fill  = { type: "pattern", pattern: "solid", fgColor: { argb: YELLOW } };
   metaCell.alignment = { horizontal: "center", vertical: "middle" };
-  sheet.getRow(2).height = 22;
+  sheet.getRow(3).height = 22;
 
-  // ── Row 3: Column descriptions ─────────────────────────────────────────────
-  sheet.getRow(3).height = 18;
+  // ── Row 4: Column descriptions ─────────────────────────────────────────────
+  sheet.getRow(4).height = 18;
   COLS.forEach((col, i) => {
-    const cell = sheet.getCell(3, i + 1);
+    const cell = sheet.getCell(4, i + 1);
     cell.value = col.desc;
     cell.font  = { italic: true, size: 8, color: { argb: "6B7280" } };
     cell.fill  = { type: "pattern", pattern: "solid", fgColor: { argb: "F9FAFB" } };
     cell.alignment = { wrapText: true, vertical: "middle" };
   });
 
-  // ── Row 4: Column headers ──────────────────────────────────────────────────
-  sheet.getRow(4).height = 24;
+  // ── Row 5: Column headers ──────────────────────────────────────────────────
+  sheet.getRow(5).height = 26;
   COLS.forEach((col, i) => {
-    const cell = sheet.getCell(4, i + 1);
+    const cell = sheet.getCell(5, i + 1);
     cell.value = col.header;
     cell.font  = { bold: true, size: 11, color: { argb: WHITE } };
     cell.fill  = { type: "pattern", pattern: "solid", fgColor: { argb: GREEN } };
     cell.alignment = { horizontal: "center", vertical: "middle" };
     cell.border = {
+      top:    { style: "medium", color: { argb: "166534" } },
       bottom: { style: "medium", color: { argb: "166534" } },
       right:  { style: "thin",   color: { argb: "FFFFFF" } },
     };
@@ -113,7 +123,7 @@ export async function GET(req: NextRequest) {
 
   // ── Data rows ──────────────────────────────────────────────────────────────
   rows.forEach((row, idx) => {
-    const rowNum  = idx + 5;
+    const rowNum  = idx + 6;
     const bgColor = idx % 2 === 0 ? "FFFFFF" : LGREY;
     const exRow   = sheet.getRow(rowNum);
     exRow.height  = 20;
@@ -132,10 +142,22 @@ export async function GET(req: NextRequest) {
     });
   });
 
-  // ── Column widths, freeze panes, auto-filter ───────────────────────────────
+  // ── Column widths ──────────────────────────────────────────────────────────
   COLS.forEach((col, i) => { sheet.getColumn(i + 1).width = col.width; });
-  sheet.views = [{ state: "frozen", xSplit: 0, ySplit: 4, topLeftCell: "A5" }];
-  sheet.autoFilter = { from: { row: 4, column: 1 }, to: { row: 4, column: COLS.length } };
+
+  // ── Summary row at bottom ─────────────────────────────────────────────────
+  const summaryRow = rows.length + 7;
+  sheet.mergeCells(summaryRow, 1, summaryRow, COLS.length);
+  const sumCell = sheet.getCell(summaryRow, 1);
+  sumCell.value = `✅  End of Export  ·  Total: ${rows.length} ward record${rows.length !== 1 ? "s" : ""}  ·  Generated by 774ng.com  ·  ${new Date().toISOString()}`;
+  sumCell.font  = { italic: true, size: 9, color: { argb: "6B7280" } };
+  sumCell.fill  = { type: "pattern", pattern: "solid", fgColor: { argb: "F0FDF4" } };
+  sumCell.alignment = { horizontal: "center", vertical: "middle" };
+  sheet.getRow(summaryRow).height = 20;
+
+  // ── Freeze panes & auto-filter ─────────────────────────────────────────────
+  sheet.views = [{ state: "frozen", xSplit: 0, ySplit: 5, topLeftCell: "A6" }];
+  sheet.autoFilter = { from: { row: 5, column: 1 }, to: { row: 5, column: COLS.length } };
 
   // ── Serialize ──────────────────────────────────────────────────────────────
   const buffer = await workbook.xlsx.writeBuffer();
