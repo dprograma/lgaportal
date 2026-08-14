@@ -163,7 +163,7 @@ export async function GET(req: NextRequest) {
     ? `lga-${slug(lgas[0].lgaName)}.xlsx`
     : `lga-records-${new Date().toISOString().split("T")[0]}.xlsx`;
 
-  return new NextResponse(buffer as Buffer, {
+  return new NextResponse(buffer as unknown as BodyInit, {
     headers: {
       "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       "Content-Disposition": `attachment; filename="${filename}"`,
