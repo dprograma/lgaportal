@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Papa from "papaparse";
-import * as XLSX from "xlsx";
 import {
   Plus, Upload, Download, Trash2, Pencil, ChevronDown,
   ChevronLeft, ChevronRight, AlertCircle, CheckCircle, MapPin, X,
@@ -186,39 +185,19 @@ function EditWardModal({ ward, onClose, onSaved }: { ward: WardRecord; onClose: 
   );
 }
 
-// ─── XLSX / CSV shared helpers ────────────────────────────────────────────────
+// ─── XLSX server-parse helper ─────────────────────────────────────────────────
 
-const WARD_HEADER_MAP: Record<string, keyof CSVRow> = {
-  "LGA Name":          "lgaName",
-  "State":             "state",
-  "Ward Name":         "wardName",
-  "Ward Number":       "wardNumber",
-  "Councillor Name":   "councillorName",
-  "Councillor Email":  "councillorEmail",
-  "Councillor Phone":  "councillorPhone",
-  "Population":        "population",
-  "Description":       "description",
-};
-
-function parseXlsxWard(file: File): Promise<CSVRow[]> {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const wb = XLSX.read(e.target?.result, { type: "array" });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      const raw = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { range: 4, defval: "" });
-      const rows: CSVRow[] = raw.map((r) => {
-        const row: CSVRow = {};
-        for (const [xlsxHeader, apiKey] of Object.entries(WARD_HEADER_MAP)) {
-          const val = String(r[xlsxHeader] ?? "").trim();
-          if (val) row[apiKey] = val;
-        }
-        return row;
-      }).filter((r) => r.lgaName && r.state && r.wardName);
-      resolve(rows);
-    };
-    reader.readAsArrayBuffer(file);
+async function parseXlsxWard(file: File): Promise<CSVRow[]> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch("/api/admin/wards/parse-xlsx", {
+    method: "POST",
+    headers: { "x-admin-secret": getAdminSecret() },
+    body: fd,
   });
+  if (!res.ok) throw new Error((await res.json()).error ?? "Parse failed.");
+  const data = await res.json();
+  return data.rows as CSVRow[];
 }
 
 // ─── CSV / XLSX upload ────────────────────────────────────────────────────────
@@ -239,10 +218,15 @@ function CSVUploadModal({ onClose, onUploaded }: { onClose: () => void; onUpload
     const f = e.target.files?.[0];
     if (!f) return;
     if (f.name.endsWith(".xlsx")) {
-      const parsed = await parseXlsxWard(f);
-      setRows(parsed);
-      setStatus(parsed.length ? "parsed" : "error");
-      setMsg(parsed.length ? `${parsed.length} rows parsed from XLSX` : "No valid data rows found in XLSX.");
+      try {
+        const parsed = await parseXlsxWard(f);
+        setRows(parsed);
+        setStatus(parsed.length ? "parsed" : "error");
+        setMsg(parsed.length ? `${parsed.length} rows parsed from XLSX` : "No valid data rows found in XLSX.");
+      } catch (err) {
+        setStatus("error");
+        setMsg(err instanceof Error ? err.message : "Failed to parse XLSX.");
+      }
     } else {
       Papa.parse<CSVRow>(f, {
         header: true, skipEmptyLines: true,

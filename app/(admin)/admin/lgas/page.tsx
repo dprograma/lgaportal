@@ -3,7 +3,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Papa from "papaparse";
-import * as XLSX from "xlsx";
 import {
   Building2, Search, CheckCircle, XCircle, Clock, BadgeCheck,
   ChevronDown, AlertCircle, ShieldOff, Power, Pencil, Download, Upload, X,
@@ -164,41 +163,19 @@ function EditLgaModal({ id, onClose, onSaved }: { id: string; onClose: () => voi
   );
 }
 
-// ─── XLSX / CSV shared helpers ────────────────────────────────────────────────
+// ─── XLSX server-parse helper ─────────────────────────────────────────────────
 
-// Maps the human-readable XLSX column headers (row 5) → API field names.
-const LGA_HEADER_MAP: Record<string, keyof BulkCsvRow> = {
-  "Official Email":  "email",
-  "LGA Name":        "lgaName",
-  "State":           "state",
-  "Chairman Name":   "chairmanName",
-  "Phone Number":    "phone",
-  "Office Address":  "officeAddress",
-  "Population":      "population",
-  "LGA Description": "description",
-  "Logo URL":        "logoUrl",
-};
-
-function parseXlsxLga(file: File): Promise<BulkCsvRow[]> {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const wb = XLSX.read(e.target?.result, { type: "array" });
-      const ws = wb.Sheets[wb.SheetNames[0]];
-      // range:4 means row 5 (0-indexed) is treated as headers; data from row 6 onward
-      const raw = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { range: 4, defval: "" });
-      const rows: BulkCsvRow[] = raw.map((r) => {
-        const row: BulkCsvRow = {};
-        for (const [xlsxHeader, apiKey] of Object.entries(LGA_HEADER_MAP)) {
-          const val = r[xlsxHeader]?.trim();
-          if (val) row[apiKey] = val;
-        }
-        return row;
-      }).filter((r) => r.email || (r.lgaName && r.state));
-      resolve(rows);
-    };
-    reader.readAsArrayBuffer(file);
+async function parseXlsxLga(file: File): Promise<BulkCsvRow[]> {
+  const fd = new FormData();
+  fd.append("file", file);
+  const res = await fetch("/api/admin/lgas/parse-xlsx", {
+    method: "POST",
+    headers: { "x-admin-secret": adminSecret() },
+    body: fd,
   });
+  if (!res.ok) throw new Error((await res.json()).error ?? "Parse failed.");
+  const data = await res.json();
+  return data.rows as BulkCsvRow[];
 }
 
 // ─── Bulk-correct via CSV / XLSX ──────────────────────────────────────────────
@@ -219,10 +196,15 @@ function BulkCorrectModal({ onClose, onDone }: { onClose: () => void; onDone: ()
     const f = e.target.files?.[0];
     if (!f) return;
     if (f.name.endsWith(".xlsx")) {
-      const parsed = await parseXlsxLga(f);
-      setRows(parsed);
-      setStatus(parsed.length ? "parsed" : "error");
-      setMsg(parsed.length ? `${parsed.length} rows parsed from XLSX` : "No valid data rows found in XLSX.");
+      try {
+        const parsed = await parseXlsxLga(f);
+        setRows(parsed);
+        setStatus(parsed.length ? "parsed" : "error");
+        setMsg(parsed.length ? `${parsed.length} rows parsed from XLSX` : "No valid data rows found in XLSX.");
+      } catch (err) {
+        setStatus("error");
+        setMsg(err instanceof Error ? err.message : "Failed to parse XLSX.");
+      }
     } else {
       Papa.parse<BulkCsvRow>(f, {
         header: true, skipEmptyLines: true,
