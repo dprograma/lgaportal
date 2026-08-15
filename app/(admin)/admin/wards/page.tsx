@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Papa from "papaparse";
+import * as XLSX from "xlsx";
 import {
   Plus, Upload, Download, Trash2, Pencil, ChevronDown,
   ChevronLeft, ChevronRight, AlertCircle, CheckCircle, MapPin, X,
@@ -185,7 +186,42 @@ function EditWardModal({ ward, onClose, onSaved }: { ward: WardRecord; onClose: 
   );
 }
 
-// ─── CSV upload ───────────────────────────────────────────────────────────────
+// ─── XLSX / CSV shared helpers ────────────────────────────────────────────────
+
+const WARD_HEADER_MAP: Record<string, keyof CSVRow> = {
+  "LGA Name":          "lgaName",
+  "State":             "state",
+  "Ward Name":         "wardName",
+  "Ward Number":       "wardNumber",
+  "Councillor Name":   "councillorName",
+  "Councillor Email":  "councillorEmail",
+  "Councillor Phone":  "councillorPhone",
+  "Population":        "population",
+  "Description":       "description",
+};
+
+function parseXlsxWard(file: File): Promise<CSVRow[]> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const wb = XLSX.read(e.target?.result, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const raw = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { range: 4, defval: "" });
+      const rows: CSVRow[] = raw.map((r) => {
+        const row: CSVRow = {};
+        for (const [xlsxHeader, apiKey] of Object.entries(WARD_HEADER_MAP)) {
+          const val = String(r[xlsxHeader] ?? "").trim();
+          if (val) row[apiKey] = val;
+        }
+        return row;
+      }).filter((r) => r.lgaName && r.state && r.wardName);
+      resolve(rows);
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+// ─── CSV / XLSX upload ────────────────────────────────────────────────────────
 interface CSVRow {
   lgaName?: string; state?: string; wardName?: string; wardNumber?: string;
   councillorName?: string; councillorEmail?: string; councillorPhone?: string;
@@ -199,13 +235,20 @@ function CSVUploadModal({ onClose, onUploaded }: { onClose: () => void; onUpload
   const [msg, setMsg] = useState("");
   const [skipped, setSkipped] = useState<{ row: number; reason: string }[]>([]);
 
-  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-    Papa.parse<CSVRow>(f, {
-      header: true, skipEmptyLines: true,
-      complete: (result) => { setRows(result.data); setStatus("parsed"); setMsg(`${result.data.length} rows parsed`); },
-    });
+    if (f.name.endsWith(".xlsx")) {
+      const parsed = await parseXlsxWard(f);
+      setRows(parsed);
+      setStatus(parsed.length ? "parsed" : "error");
+      setMsg(parsed.length ? `${parsed.length} rows parsed from XLSX` : "No valid data rows found in XLSX.");
+    } else {
+      Papa.parse<CSVRow>(f, {
+        header: true, skipEmptyLines: true,
+        complete: (result) => { setRows(result.data); setStatus("parsed"); setMsg(`${result.data.length} rows parsed`); },
+      });
+    }
   }
 
   async function upload() {
@@ -237,20 +280,22 @@ function CSVUploadModal({ onClose, onUploaded }: { onClose: () => void; onUpload
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
-        <h3 className="font-bold text-slate-900 text-lg mb-1">Upload CSV</h3>
+        <h3 className="font-bold text-slate-900 text-lg mb-1">Import Wards</h3>
         <p className="text-xs text-slate-400 mb-4">
-          CSV needs: <code className="bg-slate-100 px-1 rounded">lgaName, state, wardName, councillorName</code>
+          Upload the exported XLSX directly, or a CSV with:&nbsp;
+          <code className="bg-slate-100 px-1 rounded">lgaName, state, wardName, councillorName</code>
           <br />Optionally: <code className="bg-slate-100 px-1 rounded">wardNumber, councillorEmail, councillorPhone, population, description</code>
           <br />The LGA must already be registered — unmatched rows are skipped, never auto-created.
         </p>
 
-        <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} className="hidden" />
+        <input ref={fileRef} type="file" accept=".csv,.xlsx" onChange={handleFile} className="hidden" />
         <button
           onClick={() => fileRef.current?.click()}
           className="w-full border-2 border-dashed border-slate-200 rounded-xl py-8 text-center hover:border-green-400 transition-colors cursor-pointer mb-4"
         >
           <Upload className="h-6 w-6 text-slate-300 mx-auto mb-2" />
-          <p className="text-sm text-slate-400">Click to select a CSV file</p>
+          <p className="text-sm text-slate-400">Click to select a CSV or XLSX file</p>
+          <p className="text-xs text-slate-300 mt-1">You can re-upload the exported XLSX directly</p>
         </button>
 
         {msg && (
@@ -373,7 +418,7 @@ export default function AdminWardsPage() {
     const res = await fetch(`/api/admin/wards/export?${p}`, { headers: { "x-admin-secret": getAdminSecret() } });
     if (!res.ok) { showToast("Export failed."); return; }
     const disposition = res.headers.get("Content-Disposition") ?? "";
-    const filename = disposition.match(/filename="(.+)"/)?.[1] ?? `ward-records-${new Date().toISOString().split("T")[0]}.csv`;
+    const filename = disposition.match(/filename="(.+)"/)?.[1] ?? `ward-records-${new Date().toISOString().split("T")[0]}.xlsx`;
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -402,33 +447,50 @@ export default function AdminWardsPage() {
     singleUploadRef.current?.click();
   }
 
-  function handleSingleUploadFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleSingleUploadFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     const id = singleUploadId;
     e.target.value = "";
     if (!file || !id) return;
 
-    Papa.parse<Record<string, string>>(file, {
-      header: true, skipEmptyLines: true,
-      complete: async (result) => {
-        const row = result.data[0];
-        if (!row) { showToast("CSV has no data rows."); return; }
-        const body: Record<string, unknown> = {};
-        for (const key of ["wardName", "councillorName", "councillorEmail", "councillorPhone", "population", "description"]) {
-          if (row[key]) body[key] = row[key];
-        }
-        if (row.wardNumber) body.wardNumber = Number(row.wardNumber);
-        const res = await fetch(`/api/admin/wards/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json", "x-admin-secret": getAdminSecret() },
-          body: JSON.stringify(body),
+    let firstRow: CSVRow | null = null;
+
+    if (file.name.endsWith(".xlsx")) {
+      const rows = await parseXlsxWard(file);
+      firstRow = rows[0] ?? null;
+    } else {
+      await new Promise<void>((resolve) => {
+        Papa.parse<Record<string, string>>(file, {
+          header: true, skipEmptyLines: true,
+          complete: (result) => {
+            const r = result.data[0];
+            if (r) {
+              firstRow = {};
+              for (const key of ["lgaName", "state", "wardName", "wardNumber", "councillorName", "councillorEmail", "councillorPhone", "population", "description"] as (keyof CSVRow)[]) {
+                if (r[key]) firstRow![key] = r[key];
+              }
+            }
+            resolve();
+          },
         });
-        const d = await res.json();
-        if (!res.ok) { showToast(d.error ?? "Upload failed."); return; }
-        showToast("Ward record updated from CSV.");
-        fetchWards();
-      },
+      });
+    }
+
+    if (!firstRow) { showToast("No data rows found in file."); return; }
+    const body: Record<string, unknown> = {};
+    for (const key of ["wardName", "councillorName", "councillorEmail", "councillorPhone", "population", "description"] as (keyof CSVRow)[]) {
+      if (firstRow[key]) body[key] = firstRow[key];
+    }
+    if (firstRow.wardNumber) body.wardNumber = Number(firstRow.wardNumber);
+    const res = await fetch(`/api/admin/wards/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-admin-secret": getAdminSecret() },
+      body: JSON.stringify(body),
     });
+    const d = await res.json();
+    if (!res.ok) { showToast(d.error ?? "Upload failed."); return; }
+    showToast("Ward record updated from file.");
+    fetchWards();
   }
 
   const pages = Math.ceil(total / LIMIT);
@@ -448,7 +510,7 @@ export default function AdminWardsPage() {
             title={selectedLgaName ? `Export wards for ${selectedLgaName} only` : "Export wards for every LGA"}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:border-slate-300 transition-colors"
           >
-            <Download className="h-3.5 w-3.5" /> {selectedLgaName ? `Export CSV — ${selectedLgaName}` : "Export CSV"}
+            <Download className="h-3.5 w-3.5" /> {selectedLgaName ? `Export XLSX — ${selectedLgaName}` : "Export XLSX"}
           </button>
           <button
             onClick={() => setShowCSV(true)}
@@ -617,7 +679,7 @@ export default function AdminWardsPage() {
           onSaved={() => { setEditing(null); fetchWards(); showToast("Ward updated."); }}
         />
       )}
-      <input ref={singleUploadRef} type="file" accept=".csv" onChange={handleSingleUploadFile} className="hidden" />
+      <input ref={singleUploadRef} type="file" accept=".csv,.xlsx" onChange={handleSingleUploadFile} className="hidden" />
     </div>
   );
 }

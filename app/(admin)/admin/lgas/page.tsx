@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Papa from "papaparse";
+import * as XLSX from "xlsx";
 import {
   Building2, Search, CheckCircle, XCircle, Clock, BadgeCheck,
   ChevronDown, AlertCircle, ShieldOff, Power, Pencil, Download, Upload, X,
@@ -163,7 +164,44 @@ function EditLgaModal({ id, onClose, onSaved }: { id: string; onClose: () => voi
   );
 }
 
-// ─── Bulk-correct via CSV ──────────────────────────────────────────────────────
+// ─── XLSX / CSV shared helpers ────────────────────────────────────────────────
+
+// Maps the human-readable XLSX column headers (row 5) → API field names.
+const LGA_HEADER_MAP: Record<string, keyof BulkCsvRow> = {
+  "Official Email":  "email",
+  "LGA Name":        "lgaName",
+  "State":           "state",
+  "Chairman Name":   "chairmanName",
+  "Phone Number":    "phone",
+  "Office Address":  "officeAddress",
+  "Population":      "population",
+  "LGA Description": "description",
+  "Logo URL":        "logoUrl",
+};
+
+function parseXlsxLga(file: File): Promise<BulkCsvRow[]> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const wb = XLSX.read(e.target?.result, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      // range:4 means row 5 (0-indexed) is treated as headers; data from row 6 onward
+      const raw = XLSX.utils.sheet_to_json<Record<string, string>>(ws, { range: 4, defval: "" });
+      const rows: BulkCsvRow[] = raw.map((r) => {
+        const row: BulkCsvRow = {};
+        for (const [xlsxHeader, apiKey] of Object.entries(LGA_HEADER_MAP)) {
+          const val = r[xlsxHeader]?.trim();
+          if (val) row[apiKey] = val;
+        }
+        return row;
+      }).filter((r) => r.email || (r.lgaName && r.state));
+      resolve(rows);
+    };
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+// ─── Bulk-correct via CSV / XLSX ──────────────────────────────────────────────
 
 interface BulkCsvRow {
   email?: string; lgaName?: string; state?: string; chairmanName?: string;
@@ -177,13 +215,20 @@ function BulkCorrectModal({ onClose, onDone }: { onClose: () => void; onDone: ()
   const [msg, setMsg] = useState("");
   const [result, setResult] = useState<{ updated: number; skipped: { row: number; reason: string }[] } | null>(null);
 
-  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-    Papa.parse<BulkCsvRow>(f, {
-      header: true, skipEmptyLines: true,
-      complete: (result) => { setRows(result.data); setStatus("parsed"); setMsg(`${result.data.length} rows parsed`); },
-    });
+    if (f.name.endsWith(".xlsx")) {
+      const parsed = await parseXlsxLga(f);
+      setRows(parsed);
+      setStatus(parsed.length ? "parsed" : "error");
+      setMsg(parsed.length ? `${parsed.length} rows parsed from XLSX` : "No valid data rows found in XLSX.");
+    } else {
+      Papa.parse<BulkCsvRow>(f, {
+        header: true, skipEmptyLines: true,
+        complete: (result) => { setRows(result.data); setStatus("parsed"); setMsg(`${result.data.length} rows parsed`); },
+      });
+    }
   }
 
   async function upload() {
@@ -210,13 +255,14 @@ function BulkCorrectModal({ onClose, onDone }: { onClose: () => void; onDone: ()
           plus any fields to correct. Only already-registered LGAs are updated; unmatched rows are skipped.
         </p>
 
-        <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} className="hidden" />
+        <input ref={fileRef} type="file" accept=".csv,.xlsx" onChange={handleFile} className="hidden" />
         <button
           onClick={() => fileRef.current?.click()}
           className="w-full border-2 border-dashed border-slate-200 rounded-xl py-8 text-center hover:border-green-400 transition-colors cursor-pointer mb-4"
         >
           <Upload className="h-6 w-6 text-slate-300 mx-auto mb-2" />
-          <p className="text-sm text-slate-400">Click to select a CSV file</p>
+          <p className="text-sm text-slate-400">Click to select a CSV or XLSX file</p>
+          <p className="text-xs text-slate-300 mt-1">You can re-upload the exported XLSX directly</p>
         </button>
 
         {msg && (
@@ -365,7 +411,7 @@ export default function AdminLGAsPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `lga-records-${new Date().toISOString().split("T")[0]}.csv`;
+    a.download = `lga-records-${new Date().toISOString().split("T")[0]}.xlsx`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -389,32 +435,46 @@ export default function AdminLGAsPage() {
     singleUploadRef.current?.click();
   }
 
-  function handleSingleUploadFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleSingleUploadFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     const id = singleUploadId;
     e.target.value = "";
     if (!file || !id) return;
 
-    Papa.parse<Record<string, string>>(file, {
-      header: true, skipEmptyLines: true,
-      complete: async (result) => {
-        const row = result.data[0];
-        if (!row) { toast.error("CSV has no data rows."); return; }
-        const body: Record<string, string> = {};
-        for (const key of ["lgaName", "state", "chairmanName", "phone", "officeAddress", "population", "description", "logoUrl"]) {
-          if (row[key]) body[key] = row[key];
-        }
-        const res = await fetch(`/api/admin/lgas/${id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json", "x-admin-secret": adminSecret() },
-          body: JSON.stringify(body),
+    let firstRow: BulkCsvRow | null = null;
+
+    if (file.name.endsWith(".xlsx")) {
+      const rows = await parseXlsxLga(file);
+      firstRow = rows[0] ?? null;
+    } else {
+      await new Promise<void>((resolve) => {
+        Papa.parse<Record<string, string>>(file, {
+          header: true, skipEmptyLines: true,
+          complete: (result) => {
+            const r = result.data[0];
+            if (r) {
+              firstRow = {};
+              for (const key of ["email", "lgaName", "state", "chairmanName", "phone", "officeAddress", "population", "description", "logoUrl"] as (keyof BulkCsvRow)[]) {
+                if (r[key]) firstRow![key] = r[key];
+              }
+            }
+            resolve();
+          },
         });
-        const d = await res.json();
-        if (!res.ok) { toast.error(d.error ?? "Upload failed."); return; }
-        toast.success("LGA record updated from CSV.");
-        fetchLgas();
-      },
+      });
+    }
+
+    if (!firstRow) { toast.error("No data rows found in file."); return; }
+    const { email: _e, ...body } = firstRow;
+    const res = await fetch(`/api/admin/lgas/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json", "x-admin-secret": adminSecret() },
+      body: JSON.stringify(body),
     });
+    const d = await res.json();
+    if (!res.ok) { toast.error(d.error ?? "Upload failed."); return; }
+    toast.success("LGA record updated from file.");
+    fetchLgas();
   }
 
   return (
@@ -429,7 +489,7 @@ export default function AdminLGAsPage() {
             onClick={exportCsv}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:border-slate-300 transition-colors"
           >
-            <Download className="h-3.5 w-3.5" /> Export CSV
+            <Download className="h-3.5 w-3.5" /> Export XLSX
           </button>
           <button
             onClick={() => setShowBulk(true)}
@@ -709,7 +769,7 @@ export default function AdminLGAsPage() {
       {showBulk && (
         <BulkCorrectModal onClose={() => setShowBulk(false)} onDone={fetchLgas} />
       )}
-      <input ref={singleUploadRef} type="file" accept=".csv" onChange={handleSingleUploadFile} className="hidden" />
+      <input ref={singleUploadRef} type="file" accept=".csv,.xlsx" onChange={handleSingleUploadFile} className="hidden" />
     </div>
   );
 }
