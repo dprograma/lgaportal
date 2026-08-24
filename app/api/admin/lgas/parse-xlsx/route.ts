@@ -15,7 +15,11 @@ export async function POST(req: NextRequest) {
 
   const buffer = Buffer.from(await (file as Blob).arrayBuffer());
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer);
+  // exceljs's own .d.ts declares an ambient `Buffer extends ArrayBuffer`
+  // that shadows Node's real Buffer type for this signature, so a real
+  // Node Buffer isn't structurally assignable to it. Cast through unknown
+  // to the exact parameter type `load()` expects.
+  await workbook.xlsx.load(buffer as unknown as Parameters<typeof workbook.xlsx.load>[0]);
 
   const sheet = workbook.worksheets[0];
   if (!sheet) return NextResponse.json({ error: "No worksheet found." }, { status: 422 });
