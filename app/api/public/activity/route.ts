@@ -19,6 +19,7 @@ export async function GET() {
       db.project.findMany({
         where: { isPublished: true, approvalStatus: "APPROVED" },
         select: {
+          id: true,
           title: true,
           createdAt: true,
           lga: { select: { lgaName: true } },
@@ -28,7 +29,7 @@ export async function GET() {
       }),
       db.pressRelease.findMany({
         where: { status: "PUBLISHED" },
-        select: { title: true, createdAt: true },
+        select: { id: true, title: true, createdAt: true },
         orderBy: { createdAt: "desc" },
         take: 4,
       }),
@@ -50,22 +51,23 @@ export async function GET() {
     ]);
 
     // Build merged activity feed
-    const items: { text: string; time: string; ts: number }[] = [];
+    const items: { text: string; time: string; href: string; ts: number }[] = [];
 
     for (const p of projects) {
       items.push({
         text: `${p.title} published${p.lga ? ` in ${p.lga.lgaName} LGA` : ""}`,
         time: timeAgo(p.createdAt),
+        href: `/projects/${p.id}`,
         ts: p.createdAt.getTime(),
       });
     }
     for (const pr of pressReleases) {
       const short = pr.title.length > 65 ? pr.title.slice(0, 62) + "…" : pr.title;
-      items.push({ text: short, time: timeAgo(pr.createdAt), ts: pr.createdAt.getTime() });
+      items.push({ text: short, time: timeAgo(pr.createdAt), href: `/news/${pr.id}`, ts: pr.createdAt.getTime() });
     }
 
     items.sort((a, b) => b.ts - a.ts);
-    const feed = items.slice(0, 3).map(({ text, time }) => ({ text, time }));
+    const feed = items.slice(0, 3).map(({ text, time, href }) => ({ text, time, href }));
 
     return NextResponse.json(
       { feed, topLga: topLgas[0] ?? null, approvedLGAs },

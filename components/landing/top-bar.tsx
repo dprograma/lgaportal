@@ -4,21 +4,38 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 
-const announcements = [
-  "🏛️ New: Lagos State LGAs now publishing real-time allocation data",
-  "📊 774 LGAs tracked — Join the transparency movement",
-  "🔔 Federal allocations for Q1 2025 now available",
+interface Announcement {
+  text: string;
+  href?: string;
+}
+
+const FALLBACK_ANNOUNCEMENTS: Announcement[] = [
+  { text: "📊 774 LGAs tracked — Join the transparency movement" },
 ];
 
 export default function TopBar() {
   const [index, setIndex] = useState(0);
+  const [announcements, setAnnouncements] = useState<Announcement[]>(FALLBACK_ANNOUNCEMENTS);
+
+  useEffect(() => {
+    fetch("/api/public/activity")
+      .then((r) => r.json())
+      .then((data: { feed?: { text: string; href: string }[] }) => {
+        if (data.feed && data.feed.length > 0) {
+          setAnnouncements(data.feed.map((item) => ({ text: `🔔 ${item.text}`, href: item.href })));
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setIndex((prev) => (prev + 1) % announcements.length);
     }, 4000);
     return () => clearInterval(interval);
-  }, []);
+  }, [announcements]);
+
+  const current = announcements[index] ?? announcements[0];
 
   return (
     <div className="w-full bg-[#0f2d1a] z-50 relative">
@@ -38,16 +55,33 @@ export default function TopBar() {
         {/* Center: Rotating ticker (hidden on mobile) */}
         <div className="hidden sm:flex flex-1 items-center justify-center overflow-hidden h-full">
           <AnimatePresence mode="wait">
-            <motion.p
-              key={index}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.35, ease: "easeInOut" }}
-              className="text-[11px] text-green-200 text-center whitespace-nowrap"
-            >
-              {announcements[index]}
-            </motion.p>
+            {current.href ? (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.35, ease: "easeInOut" }}
+              >
+                <Link
+                  href={current.href}
+                  className="text-[11px] text-green-200 hover:text-white text-center whitespace-nowrap no-underline transition-colors"
+                >
+                  {current.text}
+                </Link>
+              </motion.div>
+            ) : (
+              <motion.p
+                key={index}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -8 }}
+                transition={{ duration: 0.35, ease: "easeInOut" }}
+                className="text-[11px] text-green-200 text-center whitespace-nowrap"
+              >
+                {current.text}
+              </motion.p>
+            )}
           </AnimatePresence>
         </div>
 

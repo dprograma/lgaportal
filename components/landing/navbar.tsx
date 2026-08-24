@@ -257,10 +257,10 @@ export default function Navbar() {
           <div className="relative" ref={signInRef}>
             <button
               onClick={() => { setSignInOpen((v) => !v); setGetStartedOpen(false); }}
-              className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-green-500 hover:text-green-700 flex items-center gap-1 transition-all"
+              className="border border-slate-200 rounded-lg px-4 py-1.5 text-sm font-medium text-slate-700 hover:border-green-500 hover:text-green-700 flex items-center gap-1 whitespace-nowrap shrink-0 transition-all"
             >
               Sign In
-              <ChevronDown className="h-3.5 w-3.5" />
+              <ChevronDown className="h-3.5 w-3.5 shrink-0" />
             </button>
             <AnimatePresence>
               {signInOpen && (
@@ -285,10 +285,10 @@ export default function Navbar() {
           <div className="relative" ref={getStartedRef}>
             <button
               onClick={() => { setGetStartedOpen((v) => !v); setSignInOpen(false); }}
-              className="bg-green-700 hover:bg-green-800 text-white rounded-lg px-4 py-1.5 text-sm font-semibold flex items-center gap-1 transition-all"
+              className="bg-green-700 hover:bg-green-800 text-white rounded-lg px-4 py-1.5 text-sm font-semibold flex items-center gap-1 whitespace-nowrap shrink-0 transition-all"
             >
               Get Started
-              <ChevronDown className="h-3.5 w-3.5" />
+              <ChevronDown className="h-3.5 w-3.5 shrink-0" />
             </button>
             <AnimatePresence>
               {getStartedOpen && (
