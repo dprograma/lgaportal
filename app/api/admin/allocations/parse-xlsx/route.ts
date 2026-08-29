@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
 
   const buffer = Buffer.from(await (file as Blob).arrayBuffer());
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer);
+  await workbook.xlsx.load(buffer as unknown as Buffer);
 
   const sheet = workbook.worksheets[0];
   if (!sheet) return NextResponse.json({ error: "No worksheet found." }, { status: 422 });
