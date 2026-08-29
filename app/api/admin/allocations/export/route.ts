@@ -126,7 +126,7 @@ export async function GET(req: NextRequest) {
 
     COLS.forEach((col, i) => {
       const cell = sheet.getCell(rowNum, i + 1);
-      cell.value = values[col.key] ?? "";
+      cell.value = (values[col.key] ?? "") as ExcelJS.CellValue;
       cell.font  = { size: 10, color: { argb: "111827" } };
       cell.fill  = { type: "pattern", pattern: "solid", fgColor: { argb: bgColor } };
       cell.alignment = { vertical: "middle" };
