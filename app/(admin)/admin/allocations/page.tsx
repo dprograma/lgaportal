@@ -5,7 +5,7 @@ import Link from "next/link";
 import Papa from "papaparse";
 import {
   Plus, Upload, ChevronDown, Eye, EyeOff, Trash2,
-  ChevronLeft, ChevronRight, AlertCircle, CheckCircle, FileText, FileUp, X,
+  ChevronLeft, ChevronRight, AlertCircle, CheckCircle, FileText, FileUp, X, Download,
 } from "lucide-react";
 import { STATE_COORDS } from "@/lib/nigeria-coordinates";
 import { uploadAdminFile } from "@/lib/admin-upload-client";
@@ -110,23 +110,45 @@ function AddRecordModal({ onClose, onAdded }: { onClose: () => void; onAdded: ()
   );
 }
 
-// ─── CSV upload ───────────────────────────────────────────────────────────────
+// ─── CSV / XLSX upload ────────────────────────────────────────────────────────
 
 interface CSVRow { lgaName?: string; lga_name?: string; state?: string; month?: string; year?: string; amount?: string; source?: string }
 
 function CSVUploadModal({ onClose, onUploaded }: { onClose: () => void; onUploaded: (count: number) => void }) {
   const fileRef  = useRef<HTMLInputElement>(null);
   const [rows,   setRows]   = useState<CSVRow[]>([]);
-  const [status, setStatus] = useState<"idle"|"parsed"|"uploading"|"done"|"error">("idle");
+  const [status, setStatus] = useState<"idle"|"parsing"|"parsed"|"uploading"|"done"|"error">("idle");
   const [msg,    setMsg]    = useState("");
 
-  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     if (!f) return;
-    Papa.parse<CSVRow>(f, {
-      header: true, skipEmptyLines: true,
-      complete: result => { setRows(result.data); setStatus("parsed"); setMsg(`${result.data.length} rows parsed`); },
-    });
+    setStatus("parsing"); setMsg(""); setRows([]);
+
+    if (f.name.toLowerCase().endsWith(".xlsx")) {
+      try {
+        const fd = new FormData();
+        fd.append("file", f);
+        const res = await fetch("/api/admin/allocations/parse-xlsx", {
+          method: "POST",
+          headers: { "x-admin-secret": getAdminSecret() },
+          body: fd,
+        });
+        if (!res.ok) { setStatus("error"); setMsg((await res.json()).error ?? "Parse failed."); return; }
+        const data = await res.json();
+        setRows(data.rows as CSVRow[]);
+        setStatus("parsed");
+        setMsg(`${data.total} rows parsed from XLSX`);
+      } catch (err) {
+        setStatus("error");
+        setMsg(err instanceof Error ? err.message : "Parse failed.");
+      }
+    } else {
+      Papa.parse<CSVRow>(f, {
+        header: true, skipEmptyLines: true,
+        complete: result => { setRows(result.data); setStatus("parsed"); setMsg(`${result.data.length} rows parsed`); },
+      });
+    }
   }
 
   async function upload() {
@@ -140,7 +162,7 @@ function CSVUploadModal({ onClose, onUploaded }: { onClose: () => void; onUpload
       source:  r.source ?? null,
     })).filter(r => r.lgaName && r.state && r.amount > 0);
 
-    if (!records.length) { setStatus("error"); setMsg("No valid rows found. Check CSV format."); return; }
+    if (!records.length) { setStatus("error"); setMsg("No valid rows found. Check file format."); return; }
 
     const r = await fetch("/api/admin/allocations", {
       method: "POST",
@@ -157,20 +179,26 @@ function CSVUploadModal({ onClose, onUploaded }: { onClose: () => void; onUpload
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl p-6 max-w-md w-full shadow-2xl">
-        <h3 className="font-bold text-slate-900 text-lg mb-1">Upload CSV</h3>
+        <h3 className="font-bold text-slate-900 text-lg mb-1">Import Allocations</h3>
         <p className="text-xs text-slate-400 mb-4">
-          CSV must have columns: <code className="bg-slate-100 px-1 rounded">lgaName, state, month, year, amount</code>
-          <br />Optionally: <code className="bg-slate-100 px-1 rounded">source</code>
+          Re-upload the exported XLSX, or supply a CSV with columns:{" "}
+          <code className="bg-slate-100 px-1 rounded">lgaName, state, month, year, amount</code>
+          {" "}(+ optional <code className="bg-slate-100 px-1 rounded">source</code>)
         </p>
 
-        <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} className="hidden" />
+        <input ref={fileRef} type="file" accept=".csv,.xlsx" onChange={handleFile} className="hidden" />
         <button
           onClick={() => fileRef.current?.click()}
           className="w-full border-2 border-dashed border-slate-200 rounded-xl py-8 text-center hover:border-green-400 transition-colors cursor-pointer mb-4"
         >
           <Upload className="h-6 w-6 text-slate-300 mx-auto mb-2" />
-          <p className="text-sm text-slate-400">Click to select a CSV file</p>
+          <p className="text-sm text-slate-400">Click to select a CSV or XLSX file</p>
+          <p className="text-xs text-slate-300 mt-1">You can re-upload the exported XLSX directly</p>
         </button>
+
+        {status === "parsing" && (
+          <div className="mb-4 px-3 py-2 rounded-lg text-sm bg-blue-50 text-blue-700">Parsing file…</div>
+        )}
 
         {msg && (
           <div className={`mb-4 px-3 py-2 rounded-lg text-sm flex items-center gap-2 ${
@@ -416,8 +444,29 @@ export default function AdminAllocationsPage() {
   const [showCSV,  setShowCSV]  = useState(false);
   const [showPdf,  setShowPdf]  = useState(false);
 
-  const [filterState, setFilterState] = useState("");
-  const [filterYear,  setFilterYear]  = useState("");
+  const [filterState,   setFilterState]   = useState("");
+  const [filterYear,    setFilterYear]    = useState("");
+  const [exportingXlsx, setExportingXlsx] = useState(false);
+
+  async function exportXlsx() {
+    setExportingXlsx(true);
+    const p = new URLSearchParams();
+    if (filterState) p.set("state", filterState);
+    if (filterYear)  p.set("year",  filterYear);
+    const res = await fetch(`/api/admin/allocations/export?${p}`, {
+      headers: { "x-admin-secret": getAdminSecret() },
+    });
+    if (res.ok) {
+      const blob = await res.blob();
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement("a");
+      const cd   = res.headers.get("Content-Disposition") ?? "";
+      const name = cd.match(/filename="([^"]+)"/)?.[1] ?? "allocations.xlsx";
+      a.href = url; a.download = name; a.click();
+      URL.revokeObjectURL(url);
+    }
+    setExportingXlsx(false);
+  }
 
   const fetchRecords = useCallback(async () => {
     setLoading(true);
@@ -480,10 +529,17 @@ export default function AdminAllocationsPage() {
             <FileUp className="h-3.5 w-3.5" /> Import from PDF
           </button>
           <button
+            onClick={exportXlsx}
+            disabled={exportingXlsx}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:border-slate-300 transition-colors disabled:opacity-50"
+          >
+            <Download className="h-3.5 w-3.5" /> {exportingXlsx ? "Exporting…" : "Export XLSX"}
+          </button>
+          <button
             onClick={() => setShowCSV(true)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:border-slate-300 transition-colors"
           >
-            <Upload className="h-3.5 w-3.5" /> CSV Import
+            <Upload className="h-3.5 w-3.5" /> Import XLSX / CSV
           </button>
           <button
             onClick={() => setShowAdd(true)}
