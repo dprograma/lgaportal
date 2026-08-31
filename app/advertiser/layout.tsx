@@ -85,7 +85,7 @@ export default function AdvertiserLayout({ children }: { children: React.ReactNo
             <p className="text-xs text-slate-400 truncate">{session.user.email}</p>
           </div>
           <button
-            onClick={() => signOut({ redirectTo: "/" })}
+            onClick={async () => { await signOut({ redirect: false }); window.location.href = "/"; }}
             className="flex w-full items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all"
           >
             <LogOut className="h-4 w-4 shrink-0" />
@@ -104,7 +104,7 @@ export default function AdvertiserLayout({ children }: { children: React.ReactNo
             <span className="font-bold text-slate-900 text-sm">Advertiser Panel</span>
           </div>
           <button
-            onClick={() => signOut({ redirectTo: "/" })}
+            onClick={async () => { await signOut({ redirect: false }); window.location.href = "/"; }}
             className="text-slate-400 hover:text-red-600 transition-colors"
           >
             <LogOut className="h-4 w-4" />

@@ -186,12 +186,12 @@ export default function SettingsPage() {
 
   const handleLogout = async () => {
     setLogoutLoading(true);
-    // Clear the session, then navigate home explicitly. Mirrors
-    // handleDeleteAccount: a deterministic redirect rather than relying on
-    // signOut()'s full-page redirect chain, which under Auth.js v5 could
-    // return to the current page instead of "/".
+    // Clear the session, then hard-navigate home ourselves. We deliberately do
+    // NOT use signOut()'s built-in redirect: under Auth.js v5 its resolved
+    // callback URL came back as the current page (/settings) instead of "/",
+    // so the user was never returned to the home page after signing out.
     await signOut({ redirect: false });
-    router.push("/");
+    window.location.href = "/";
   };
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
