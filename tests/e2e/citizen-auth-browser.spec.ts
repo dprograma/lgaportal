@@ -278,23 +278,30 @@ test.describe("Citizen browser journey", () => {
     const { email } = await seedVerifiedCitizen(request, ipFor(5));
     await loginAsCitizen(page, email, "456789");
 
+    // TEMP DIAGNOSTIC: capture what the browser does after clicking Sign Out.
+    const logs: string[] = [];
+    page.on("console", (m) => logs.push(`[console.${m.type()}] ${m.text()}`));
+    page.on("pageerror", (e) => logs.push(`[pageerror] ${e.message}`));
+    page.on("requestfailed", (r) => logs.push(`[requestfailed] ${r.url()} ${r.failure()?.errorText ?? ""}`));
+
     await page.goto("/settings", { waitUntil: "domcontentloaded" });
 
     // The Sign Out button is in the settings page header
     const signOutBtn = page.getByRole("button", { name: /sign out/i });
     await expect(signOutBtn).toBeVisible({ timeout: 10_000 });
 
-    // handleLogout clears the session then router.push("/"); wait for that
-    // client navigation to land on the home page. Headroom covers `next dev`
-    // compiling "/" on first hit on a loaded CI runner.
-    await Promise.all([
-      page.waitForURL(/\/$/, { timeout: 30_000 }),
-      signOutBtn.click(),
-    ]);
-
-    // Verify we landed on the home page — session-clearing is independently covered
-    // by the auth-guard test (/profile → /login without a session).
-    await expect(page).toHaveURL(/\/$/, { timeout: 10_000 });
+    // handleLogout clears the session then hard-navigates to "/". Poll the URL
+    // (toHaveURL catches both hard and soft navigations).
+    await signOutBtn.click();
+    try {
+      await expect(page).toHaveURL(/\/$/, { timeout: 20_000 });
+    } catch {
+      throw new Error(
+        `URL after sign-out: ${page.url()}\n` +
+        `Sign Out still visible: ${await signOutBtn.isVisible().catch(() => "n/a")}\n` +
+        `Browser events:\n${logs.join("\n") || "(none)"}`
+      );
+    }
   });
 
 });
