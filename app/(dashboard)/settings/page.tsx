@@ -4,9 +4,8 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AnimatePresence, motion } from "framer-motion";
-import { signOut } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { clientLogout } from "@/lib/logout";
 import {
   BadgeCheck,
   Lock,
@@ -124,7 +123,6 @@ function DeleteConfirmModal({
 }
 
 export default function SettingsPage() {
-  const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>("password");
   const [pwLoading, setPwLoading] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -173,9 +171,8 @@ export default function SettingsPage() {
         toast.error("Failed to delete account. Please try again.");
         return;
       }
-      await signOut({ redirect: false });
-      router.push("/");
-      toast.success("Account deleted.");
+      // Same reliable sign-out path as handleLogout (next-auth signOut() hung).
+      await clientLogout("/");
     } catch {
       toast.error("Something went wrong.");
     } finally {
@@ -186,12 +183,9 @@ export default function SettingsPage() {
 
   const handleLogout = async () => {
     setLogoutLoading(true);
-    // Clear the session, then hard-navigate home ourselves. We deliberately do
-    // NOT use signOut()'s built-in redirect: under Auth.js v5 its resolved
-    // callback URL came back as the current page (/settings) instead of "/",
-    // so the user was never returned to the home page after signing out.
-    await signOut({ redirect: false });
-    window.location.href = "/";
+    // next-auth/react's signOut() hung here (no navigation ever started), so
+    // clear the session via the Auth.js endpoint directly and hard-navigate.
+    await clientLogout("/");
   };
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [

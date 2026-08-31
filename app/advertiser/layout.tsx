@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { useSession } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
+import { clientLogout } from "@/lib/logout";
 import Link from "next/link";
 import {
   LayoutDashboard,
@@ -85,7 +86,7 @@ export default function AdvertiserLayout({ children }: { children: React.ReactNo
             <p className="text-xs text-slate-400 truncate">{session.user.email}</p>
           </div>
           <button
-            onClick={async () => { await signOut({ redirect: false }); window.location.href = "/"; }}
+            onClick={() => clientLogout("/")}
             className="flex w-full items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-500 hover:bg-red-50 hover:text-red-600 transition-all"
           >
             <LogOut className="h-4 w-4 shrink-0" />
@@ -104,7 +105,7 @@ export default function AdvertiserLayout({ children }: { children: React.ReactNo
             <span className="font-bold text-slate-900 text-sm">Advertiser Panel</span>
           </div>
           <button
-            onClick={async () => { await signOut({ redirect: false }); window.location.href = "/"; }}
+            onClick={() => clientLogout("/")}
             className="text-slate-400 hover:text-red-600 transition-colors"
           >
             <LogOut className="h-4 w-4" />
