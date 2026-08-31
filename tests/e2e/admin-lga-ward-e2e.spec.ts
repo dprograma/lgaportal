@@ -3,9 +3,9 @@
  *
  *   - LGA profile correction   (/api/admin/lgas/[id]      — single edit)
  *   - LGA bulk correction      (/api/admin/lgas/bulk-update — CSV round-trip)
- *   - LGA CSV export           (/api/admin/lgas/export)
+ *   - LGA XLSX export          (/api/admin/lgas/export)
  *   - Ward CRUD                (/api/admin/wards, /api/admin/wards/[id])
- *   - Ward CSV export          (/api/admin/wards/export)
+ *   - Ward XLSX export         (/api/admin/wards/export)
  *
  * These endpoints exist so admin can correct an already-registered LGA's
  * official record (name, population, address, etc. — never login/auth
@@ -15,9 +15,10 @@
  * Run with:  npx playwright test --project=api admin-lga-ward-e2e
  */
 
-import { test, expect, request as apiRequest, type APIRequestContext } from "@playwright/test";
+import { test, expect, request as apiRequest, type APIRequestContext, type APIResponse } from "@playwright/test";
 import { Pool } from "pg";
 import { config } from "dotenv";
+import ExcelJS from "exceljs";
 
 config({ path: ".env.local" });
 
@@ -71,6 +72,34 @@ async function seedApprovedLGA(ip: string): Promise<{ id: string; email: string;
   expect(approve.status(), "seed: admin approve").toBe(200);
 
   return { id: lgaId, email, lgaName, state };
+}
+
+/**
+ * Parse a styled XLSX export into { headers, rows }. Exports carry a 5-row
+ * banner (title / purpose / metadata / column descriptions / column headers),
+ * so the column headers live on row 5 and data begins on row 6. A trailing
+ * summary row whose first cell starts with "✅" is excluded. Rows are keyed by
+ * their display header (e.g. "Official Email", "Ward Name").
+ */
+async function parseXlsxExport(res: APIResponse): Promise<{ headers: string[]; rows: Record<string, string>[] }> {
+  const buf = await res.body();
+  const wb = new ExcelJS.Workbook();
+  await wb.xlsx.load(buf as unknown as Parameters<typeof wb.xlsx.load>[0]);
+  const sheet = wb.worksheets[0];
+
+  const headers: string[] = [];
+  sheet.getRow(5).eachCell((cell, col) => { headers[col - 1] = String(cell.value ?? "").trim(); });
+
+  const rows: Record<string, string>[] = [];
+  for (let r = 6; r <= sheet.rowCount; r++) {
+    const row = sheet.getRow(r);
+    const first = String(row.getCell(1).value ?? "");
+    if (first.startsWith("✅") || first.trim() === "") continue;
+    const obj: Record<string, string> = {};
+    headers.forEach((h, i) => { if (h) obj[h] = String(row.getCell(i + 1).value ?? "").trim(); });
+    rows.push(obj);
+  }
+  return { headers, rows };
 }
 
 // ─── LGA: single-record edit ──────────────────────────────────────────────────
@@ -171,15 +200,15 @@ test.describe("GET /api/admin/lgas/export", () => {
     expect((await c.get("/api/admin/lgas/export")).status()).toBe(401);
   });
 
-  test("returns CSV including the seeded LGA, in a shape bulk-update accepts back", async () => {
+  test("returns XLSX including the seeded LGA, in a shape bulk-update accepts back", async () => {
     const lga = await seedApprovedLGA(ipFor(4));
     const c = await apiRequest.newContext({ baseURL: BASE });
     const res = await c.get(`/api/admin/lgas/export?search=${encodeURIComponent(lga.lgaName)}`, { headers: ADMIN });
     expect(res.status()).toBe(200);
-    expect(res.headers()["content-type"]).toContain("text/csv");
-    const text = await res.text();
-    expect(text).toContain("email,lgaName,state");
-    expect(text).toContain(lga.email);
+    expect(res.headers()["content-type"]).toContain("spreadsheetml");
+    const { headers, rows } = await parseXlsxExport(res);
+    expect(headers).toEqual(expect.arrayContaining(["Official Email", "LGA Name", "State"]));
+    expect(rows.some((r) => r["Official Email"] === lga.email)).toBe(true);
   });
 
   test("?id= exports exactly one row for that LGA, ignoring other filters", async () => {
@@ -189,11 +218,10 @@ test.describe("GET /api/admin/lgas/export", () => {
 
     const res = await c.get(`/api/admin/lgas/export?id=${a.id}&search=${encodeURIComponent(b.lgaName)}`, { headers: ADMIN });
     expect(res.status()).toBe(200);
-    const text = await res.text();
-    const dataLines = text.trim().split("\n").slice(1);
-    expect(dataLines).toHaveLength(1);
-    expect(text).toContain(a.email);
-    expect(text).not.toContain(b.email);
+    const { rows } = await parseXlsxExport(res);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]["Official Email"]).toBe(a.email);
+    expect(rows.some((r) => r["Official Email"] === b.email)).toBe(false);
   });
 
   test("?id= for a nonexistent LGA → 404", async () => {
@@ -202,20 +230,21 @@ test.describe("GET /api/admin/lgas/export", () => {
     expect(res.status()).toBe(404);
   });
 
-  test("a downloaded single-record CSV round-trips through PATCH", async () => {
+  test("a downloaded single-record export round-trips through PATCH", async () => {
     const lga = await seedApprovedLGA(ipFor(12));
     const c = await apiRequest.newContext({ baseURL: BASE });
 
     const exported = await c.get(`/api/admin/lgas/export?id=${lga.id}`, { headers: ADMIN });
-    const [header, dataLine] = (await exported.text()).trim().split("\n");
-    const cols = header.split(",");
-    const vals = dataLine.split(",");
-    const row = Object.fromEntries(cols.map((k, i) => [k, vals[i]]));
-    row.population = "777000";
+    const { rows } = await parseXlsxExport(exported);
+    expect(rows).toHaveLength(1);
+    const row = rows[0];
 
     const patch = await c.patch(`/api/admin/lgas/${lga.id}`, {
       headers: ADMIN,
-      data: { lgaName: row.lgaName, state: row.state, chairmanName: row.chairmanName, phone: row.phone, officeAddress: row.officeAddress, population: row.population },
+      data: {
+        lgaName: row["LGA Name"], state: row["State"], chairmanName: row["Chairman Name"],
+        phone: row["Phone Number"], officeAddress: row["Office Address"], population: "777000",
+      },
     });
     expect(patch.status()).toBe(200);
     expect((await patch.json()).lga.population).toBe("777000");
@@ -321,7 +350,7 @@ test.describe("Ward record lifecycle — list, edit, delete, export", () => {
     expect(editAfterDelete.status()).toBe(404);
   });
 
-  test("GET /api/admin/wards/export returns CSV including a created ward", async () => {
+  test("GET /api/admin/wards/export returns XLSX including a created ward", async () => {
     const lga = await seedApprovedLGA(ipFor(9));
     const c = await apiRequest.newContext({ baseURL: BASE });
     await c.post("/api/admin/wards", {
@@ -331,10 +360,9 @@ test.describe("Ward record lifecycle — list, edit, delete, export", () => {
 
     const res = await c.get("/api/admin/wards/export", { headers: ADMIN });
     expect(res.status()).toBe(200);
-    expect(res.headers()["content-type"]).toContain("text/csv");
-    const text = await res.text();
-    expect(text).toContain(lga.lgaName);
-    expect(text).toContain("Export Ward");
+    expect(res.headers()["content-type"]).toContain("spreadsheetml");
+    const { rows } = await parseXlsxExport(res);
+    expect(rows.some((r) => r["LGA Name"] === lga.lgaName && r["Ward Name"] === "Export Ward")).toBe(true);
   });
 
   test("?id= exports exactly one ward row and round-trips through PATCH", async () => {
@@ -349,16 +377,13 @@ test.describe("Ward record lifecycle — list, edit, delete, export", () => {
 
     const exported = await c.get(`/api/admin/wards/export?id=${wardId}`, { headers: ADMIN });
     expect(exported.status()).toBe(200);
-    const [header, dataLine, extra] = (await exported.text()).trim().split("\n");
-    expect(extra).toBeUndefined(); // exactly one data row
-    const cols = header.split(",");
-    const vals = dataLine.split(",");
-    const row = Object.fromEntries(cols.map((k, i) => [k, vals[i]]));
-    expect(row.wardName).toBe("Solo Ward");
+    const { rows } = await parseXlsxExport(exported);
+    expect(rows).toHaveLength(1); // exactly one data row
+    expect(rows[0]["Ward Name"]).toBe("Solo Ward");
 
     const patch = await c.patch(`/api/admin/wards/${wardId}`, {
       headers: ADMIN,
-      data: { wardName: row.wardName, councillorName: "Cllr Solo Corrected" },
+      data: { wardName: rows[0]["Ward Name"], councillorName: "Cllr Solo Corrected" },
     });
     expect(patch.status()).toBe(200);
     expect((await patch.json()).ward.councillorName).toBe("Cllr Solo Corrected");
@@ -388,11 +413,12 @@ test.describe("Ward record lifecycle — list, edit, delete, export", () => {
     expect(exported.status()).toBe(200);
     expect(exported.headers()["content-disposition"]).toContain(`wards-${lgaA.lgaName.replace(/\s+/g, "-").toLowerCase()}`);
 
-    const lines = (await exported.text()).trim().split("\n");
-    expect(lines).toHaveLength(3); // header + 2 rows, lgaB's ward excluded
-    expect(lines.join("\n")).toContain("A Ward One");
-    expect(lines.join("\n")).toContain("A Ward Two");
-    expect(lines.join("\n")).not.toContain("B Ward One");
+    const { rows: exportedRows } = await parseXlsxExport(exported);
+    expect(exportedRows).toHaveLength(2); // 2 rows, lgaB's ward excluded
+    const exportedNames = exportedRows.map((r) => r["Ward Name"]);
+    expect(exportedNames).toContain("A Ward One");
+    expect(exportedNames).toContain("A Ward Two");
+    expect(exportedNames).not.toContain("B Ward One");
 
     // Round-trips through the bulk import endpoint, updating only that LGA's wards.
     const reimport = await c.post("/api/admin/wards", {
