@@ -284,10 +284,9 @@ test.describe("Citizen browser journey", () => {
     const signOutBtn = page.getByRole("button", { name: /sign out/i });
     await expect(signOutBtn).toBeVisible({ timeout: 10_000 });
 
-    // signOut({ callbackUrl: "/" }) performs a full-page redirect chain; wait for it
-    // to complete before doing any further navigation. The redirect lands on "/",
-    // which `next dev` (Turbopack) may compile on first hit — allow headroom for
-    // that cold compile on a loaded CI runner.
+    // handleLogout clears the session then router.push("/"); wait for that
+    // client navigation to land on the home page. Headroom covers `next dev`
+    // compiling "/" on first hit on a loaded CI runner.
     await Promise.all([
       page.waitForURL(/\/$/, { timeout: 30_000 }),
       signOutBtn.click(),
