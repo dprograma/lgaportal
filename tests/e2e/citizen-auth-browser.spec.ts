@@ -267,7 +267,11 @@ test.describe("Citizen browser journey", () => {
 
     await page.getByRole("button", { name: /update password/i }).click();
 
-    await expect(page.getByText(/password changed successfully/i)).toBeVisible({ timeout: 15_000 });
+    // The webServer runs `next dev` (Turbopack), which compiles API routes on
+    // first hit. /api/profile/change-password is first exercised here, so allow
+    // headroom for that cold compile on a loaded CI runner. (The endpoint itself
+    // is contract-tested in auth-e2e.spec.ts under the browserless `api` project.)
+    await expect(page.getByText(/password changed successfully/i)).toBeVisible({ timeout: 30_000 });
   });
 
   test("citizen signs out from the settings page and the session is cleared", async ({ page, request }) => {
@@ -281,15 +285,17 @@ test.describe("Citizen browser journey", () => {
     await expect(signOutBtn).toBeVisible({ timeout: 10_000 });
 
     // signOut({ callbackUrl: "/" }) performs a full-page redirect chain; wait for it
-    // to complete before doing any further navigation.
+    // to complete before doing any further navigation. The redirect lands on "/",
+    // which `next dev` (Turbopack) may compile on first hit — allow headroom for
+    // that cold compile on a loaded CI runner.
     await Promise.all([
-      page.waitForURL(/\/$/, { timeout: 15_000 }),
+      page.waitForURL(/\/$/, { timeout: 30_000 }),
       signOutBtn.click(),
     ]);
 
     // Verify we landed on the home page — session-clearing is independently covered
     // by the auth-guard test (/profile → /login without a session).
-    await expect(page).toHaveURL(/\/$/, { timeout: 5_000 });
+    await expect(page).toHaveURL(/\/$/, { timeout: 10_000 });
   });
 
 });
