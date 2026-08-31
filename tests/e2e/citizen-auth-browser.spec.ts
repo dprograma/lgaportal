@@ -255,7 +255,11 @@ test.describe("Citizen browser journey", () => {
     const { email } = await seedVerifiedCitizen(request, ipFor(4));
     await loginAsCitizen(page, email, "345678");
 
-    await page.goto("/settings", { waitUntil: "domcontentloaded" });
+    // Wait for network idle so the settings client component has hydrated before
+    // we interact: the register-based inputs only capture typed values, and the
+    // submit handler only fires, once React has hydrated (under `next dev` +
+    // Turbopack on a loaded CI runner, hydration can lag the SSR'd markup).
+    await page.goto("/settings", { waitUntil: "networkidle" });
 
     // The "Change Password" tab is active by default — wait for the form heading inside the card
     await expect(page.locator("h3").filter({ hasText: /Change Password/i })).toBeVisible({ timeout: 10_000 });
@@ -267,10 +271,8 @@ test.describe("Citizen browser journey", () => {
 
     await page.getByRole("button", { name: /update password/i }).click();
 
-    // The webServer runs `next dev` (Turbopack), which compiles API routes on
-    // first hit. /api/profile/change-password is first exercised here, so allow
-    // headroom for that cold compile on a loaded CI runner. (The endpoint itself
-    // is contract-tested in auth-e2e.spec.ts under the browserless `api` project.)
+    // Headroom for `next dev` compiling /api/profile/change-password on first hit.
+    // (The endpoint is contract-tested in auth-e2e.spec.ts under the `api` project.)
     await expect(page.getByText(/password changed successfully/i)).toBeVisible({ timeout: 30_000 });
   });
 
@@ -278,30 +280,19 @@ test.describe("Citizen browser journey", () => {
     const { email } = await seedVerifiedCitizen(request, ipFor(5));
     await loginAsCitizen(page, email, "456789");
 
-    // TEMP DIAGNOSTIC: capture what the browser does after clicking Sign Out.
-    const logs: string[] = [];
-    page.on("console", (m) => logs.push(`[console.${m.type()}] ${m.text()}`));
-    page.on("pageerror", (e) => logs.push(`[pageerror] ${e.message}`));
-    page.on("requestfailed", (r) => logs.push(`[requestfailed] ${r.url()} ${r.failure()?.errorText ?? ""}`));
-
     await page.goto("/settings", { waitUntil: "domcontentloaded" });
 
     // The Sign Out button is in the settings page header
     const signOutBtn = page.getByRole("button", { name: /sign out/i });
     await expect(signOutBtn).toBeVisible({ timeout: 10_000 });
 
-    // handleLogout clears the session then hard-navigates to "/". Poll the URL
-    // (toHaveURL catches both hard and soft navigations).
-    await signOutBtn.click();
-    try {
-      await expect(page).toHaveURL(/\/$/, { timeout: 20_000 });
-    } catch {
-      throw new Error(
-        `URL after sign-out: ${page.url()}\n` +
-        `Sign Out still visible: ${await signOutBtn.isVisible().catch(() => "n/a")}\n` +
-        `Browser events:\n${logs.join("\n") || "(none)"}`
-      );
-    }
+    // handleLogout clears the session then hard-navigates to "/". A click that
+    // lands before React finishes hydrating is a no-op, so retry the click until
+    // the navigation actually happens (toPass re-runs the whole block).
+    await expect(async () => {
+      await signOutBtn.click();
+      await expect(page).toHaveURL(/\/$/, { timeout: 3_000 });
+    }).toPass({ timeout: 30_000 });
   });
 
 });
