@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { useCurrentUser } from "@/lib/use-current-user";
 
 interface Announcement {
   text: string;
@@ -16,6 +17,7 @@ const FALLBACK_ANNOUNCEMENTS: Announcement[] = [
 export default function TopBar() {
   const [index, setIndex] = useState(0);
   const [announcements, setAnnouncements] = useState<Announcement[]>(FALLBACK_ANNOUNCEMENTS);
+  const user = useCurrentUser();
 
   useEffect(() => {
     fetch("/api/public/activity")
@@ -87,26 +89,40 @@ export default function TopBar() {
 
         {/* Right: Navigation links */}
         <div className="flex items-center gap-2 shrink-0">
-          <Link
-            href="/lga-signup"
-            className="hidden sm:inline text-[11px] text-green-300 hover:text-white font-semibold transition-colors"
-          >
-            Register Your LGA →
-          </Link>
-          <span className="hidden sm:inline text-green-700 text-[11px]">|</span>
-          <Link
-            href="/login"
-            className="text-[11px] text-green-300 hover:text-white font-semibold transition-colors"
-          >
-            Sign In
-          </Link>
-          <span className="text-green-700 text-[11px]">|</span>
-          <Link
-            href="/signup"
-            className="text-[11px] text-green-300 hover:text-white font-semibold transition-colors"
-          >
-            Join Free
-          </Link>
+          {user.authenticated ? (
+            /* Authenticated: no Sign In / Join Free — offer a dashboard shortcut */
+            user.dashboardHref && (
+              <Link
+                href={user.dashboardHref}
+                className="text-[11px] text-green-300 hover:text-white font-semibold transition-colors"
+              >
+                My Dashboard →
+              </Link>
+            )
+          ) : (
+            <>
+              <Link
+                href="/lga-signup"
+                className="hidden sm:inline text-[11px] text-green-300 hover:text-white font-semibold transition-colors"
+              >
+                Register Your LGA →
+              </Link>
+              <span className="hidden sm:inline text-green-700 text-[11px]">|</span>
+              <Link
+                href="/login"
+                className="text-[11px] text-green-300 hover:text-white font-semibold transition-colors"
+              >
+                Sign In
+              </Link>
+              <span className="text-green-700 text-[11px]">|</span>
+              <Link
+                href="/signup"
+                className="text-[11px] text-green-300 hover:text-white font-semibold transition-colors"
+              >
+                Join Free
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </div>

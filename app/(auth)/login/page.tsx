@@ -17,7 +17,6 @@ import {
 import { loginSchema, type LoginInput } from "@/lib/validations";
 import { Input, PasswordInput } from "@/components/ui/input";
 import Button from "@/components/ui/button";
-import SocialLoginButtons from "@/components/auth/social-login-buttons";
 
 // ─── Left panel data ───────────────────────────────────────────────────────
 
@@ -218,12 +217,6 @@ function LoginContent() {
                   Sign up
                 </Link>
               </p>
-            </div>
-
-            {/* Social login */}
-            <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6 shadow-sm">
-              <p className="text-xs text-slate-500 text-center mb-3 font-medium">Quick sign-in via</p>
-              <SocialLoginButtons callbackUrl={callbackUrl} />
             </div>
 
             {/* Credentials form */}

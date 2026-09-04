@@ -4,8 +4,22 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, Search, ChevronDown, MapPin, BadgeCheck } from "lucide-react";
+import {
+  Menu, X, Search, ChevronDown, MapPin, BadgeCheck,
+  LayoutDashboard, Settings, LogOut,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useCurrentUser } from "@/lib/use-current-user";
+
+/** Two-letter avatar initials from a display name (falls back to email/“U”). */
+function initials(name: string | null, email: string | null): string {
+  const src = (name || email || "U").trim();
+  const parts = src.split(/\s+/);
+  if (parts.length >= 2 && parts[0] && parts[1]) {
+    return (parts[0][0] + parts[1][0]).toUpperCase();
+  }
+  return src.slice(0, 2).toUpperCase();
+}
 
 const navLinks = [
   { label: "Home",        href: "/" },
@@ -194,9 +208,13 @@ export default function Navbar() {
   const [mobileOpen,    setMobileOpen]    = useState(false);
   const [signInOpen,    setSignInOpen]    = useState(false);
   const [getStartedOpen,setGetStartedOpen]= useState(false);
+  const [accountOpen,   setAccountOpen]   = useState(false);
 
   const signInRef      = useRef<HTMLDivElement>(null);
   const getStartedRef  = useRef<HTMLDivElement>(null);
+  const accountRef     = useRef<HTMLDivElement>(null);
+
+  const user = useCurrentUser();
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 80);
@@ -208,6 +226,7 @@ export default function Navbar() {
     const handleClickOutside = (e: MouseEvent) => {
       if (signInRef.current && !signInRef.current.contains(e.target as Node)) setSignInOpen(false);
       if (getStartedRef.current && !getStartedRef.current.contains(e.target as Node)) setGetStartedOpen(false);
+      if (accountRef.current && !accountRef.current.contains(e.target as Node)) setAccountOpen(false);
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
@@ -253,6 +272,60 @@ export default function Navbar() {
 
         {/* Desktop CTAs */}
         <div className="hidden lg:flex items-center gap-2">
+          {user.loading ? (
+            /* Reserve space while auth state resolves, to avoid a Sign In flash */
+            <div className="h-8 w-40" aria-hidden />
+          ) : user.authenticated ? (
+            /* Account dropdown (authenticated) */
+            <div className="relative" ref={accountRef}>
+              <button
+                onClick={() => { setAccountOpen((v) => !v); setSignInOpen(false); setGetStartedOpen(false); }}
+                className="flex items-center gap-2 border border-slate-200 rounded-lg pl-1.5 pr-2.5 py-1 hover:border-green-500 transition-all"
+              >
+                <span className="h-7 w-7 rounded-full bg-green-700 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                  {initials(user.name, user.email)}
+                </span>
+                <span className="max-w-[120px] truncate text-sm font-medium text-slate-700">
+                  {user.name || user.email || "Account"}
+                </span>
+                <ChevronDown className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+              </button>
+              <AnimatePresence>
+                {accountOpen && (
+                  <motion.div
+                    variants={dropdownVariants}
+                    initial="initial" animate="animate" exit="exit"
+                    transition={{ duration: 0.18 }}
+                    className="absolute right-0 top-full mt-1.5 w-56 bg-white rounded-xl border border-slate-200 shadow-elevated py-1.5 z-50"
+                  >
+                    <div className="px-4 py-2 border-b border-slate-100 mb-1">
+                      <p className="text-sm font-semibold text-slate-800 truncate">{user.name || "Account"}</p>
+                      {user.email && <p className="text-xs text-slate-400 truncate">{user.email}</p>}
+                    </div>
+                    {user.dashboardHref && (
+                      <Link href={user.dashboardHref} onClick={() => setAccountOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-green-50 hover:text-green-700 transition-colors">
+                        <LayoutDashboard className="h-4 w-4 shrink-0" /> Dashboard
+                      </Link>
+                    )}
+                    {user.settingsHref && (
+                      <Link href={user.settingsHref} onClick={() => setAccountOpen(false)}
+                        className="flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-green-50 hover:text-green-700 transition-colors">
+                        <Settings className="h-4 w-4 shrink-0" /> Settings
+                      </Link>
+                    )}
+                    <button
+                      onClick={() => { setAccountOpen(false); user.logout(); }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors border-t border-slate-100 mt-1"
+                    >
+                      <LogOut className="h-4 w-4 shrink-0" /> Log Out
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          ) : (
+          <>
           {/* Sign In dropdown */}
           <div className="relative" ref={signInRef}>
             <button
@@ -308,6 +381,8 @@ export default function Navbar() {
               )}
             </AnimatePresence>
           </div>
+          </>
+          )}
         </div>
 
         {/* Mobile hamburger */}
@@ -349,6 +424,39 @@ export default function Navbar() {
                 </Link>
               ))}
 
+              {user.authenticated ? (
+                /* Account section (authenticated) */
+                <div className="pt-3 border-t border-slate-100 mt-2">
+                  <div className="flex items-center gap-2.5 px-3 py-2 mb-1">
+                    <span className="h-8 w-8 rounded-full bg-green-700 text-white text-xs font-bold flex items-center justify-center shrink-0">
+                      {initials(user.name, user.email)}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-slate-800 truncate">{user.name || "Account"}</p>
+                      {user.email && <p className="text-xs text-slate-400 truncate">{user.email}</p>}
+                    </div>
+                  </div>
+                  {user.dashboardHref && (
+                    <Link href={user.dashboardHref} onClick={() => setMobileOpen(false)}
+                      className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium text-slate-700 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors">
+                      <LayoutDashboard className="h-4 w-4 shrink-0" /> Dashboard
+                    </Link>
+                  )}
+                  {user.settingsHref && (
+                    <Link href={user.settingsHref} onClick={() => setMobileOpen(false)}
+                      className="flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium text-slate-700 hover:text-green-700 hover:bg-green-50 rounded-lg transition-colors">
+                      <Settings className="h-4 w-4 shrink-0" /> Settings
+                    </Link>
+                  )}
+                  <button
+                    onClick={() => { setMobileOpen(false); user.logout(); }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                  >
+                    <LogOut className="h-4 w-4 shrink-0" /> Log Out
+                  </button>
+                </div>
+              ) : (
+              <>
               {/* Sign In group */}
               <div className="pt-3 border-t border-slate-100 mt-2">
                 <p className="px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-1.5">
@@ -374,6 +482,8 @@ export default function Navbar() {
                   </Link>
                 ))}
               </div>
+              </>
+              )}
             </div>
           </motion.div>
         )}

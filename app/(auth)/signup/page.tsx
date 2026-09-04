@@ -18,7 +18,6 @@ import { Input, PasswordInput } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import Button from "@/components/ui/button";
-import SocialLoginButtons from "@/components/auth/social-login-buttons";
 
 // ─── Password strength meter ───────────────────────────────────────────────
 
@@ -245,12 +244,6 @@ export default function SignupPage() {
                   Sign in to your account →
                 </Link>
               </p>
-            </div>
-
-            {/* Social login */}
-            <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6 shadow-sm">
-              <p className="text-xs text-slate-500 text-center mb-3 font-medium">Quick registration via</p>
-              <SocialLoginButtons callbackUrl="/profile" />
             </div>
 
             {/* Credentials form */}
