@@ -58,6 +58,7 @@ const footerColumns = [
     links: [
       { label: "About Us", href: "/about" },
       { label: "How It Works", href: "/how-it-works" },
+      { label: "User Journeys", href: "/user-journeys" },
       { label: "FAQs", href: "/faqs" },
       { label: "Blog", href: "/blog" },
       { label: "API Docs", href: "/docs/api" },
