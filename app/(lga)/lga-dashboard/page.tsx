@@ -77,14 +77,10 @@ export default function LGADashboardPage() {
   const endDate       = lga?.tenureEndDate ?? null;
   const graceEnd      = lga?.gracePeriodEndsAt ?? null;
   const freeUntil     = lga?.freeUntil ?? null;
-  const subEnd        = lga?.subscriptionEnd ?? null;
-  const subStatus     = lga?.subscriptionStatus ?? null;
 
   const daysLeftTenure = endDate ? daysUntil(endDate) : null;
   const graceDays      = graceEnd ? daysUntil(graceEnd) : null;
   const freeDays       = freeUntil ? daysUntil(freeUntil) : null;
-
-  const daysLeftSub = subEnd ? daysUntil(subEnd) : null;
 
   const quickLinks = [
     { href: "/lga-dashboard/posts",      label: "Posts & Updates",    icon: Newspaper,     desc: "Publish news and updates"          },
@@ -93,7 +89,7 @@ export default function LGADashboardPage() {
     { href: "/lga-dashboard/endowments", label: "Endowments",         icon: TrendingUp,    desc: "Showcase investment opportunities"  },
     { href: "/lga-dashboard/staff",      label: "Staff",              icon: UserCog,       desc: "Manage up to 2 staff accounts"      },
     { href: "/lga-dashboard/tenure",     label: "Tenure",             icon: CalendarClock, desc: "View & renew chairmanship term"     },
-    { href: "/lga-dashboard/payments",   label: "Payments",           icon: CreditCard,    desc: "Subscription & payment history"    },
+    // Payments tile hidden for now — see app/(lga)/lga-dashboard/payments/page.tsx
     { href: "/lga-dashboard/settings",   label: "Settings",           icon: FileText,      desc: "Update LGA profile & documents"    },
   ];
 
@@ -210,38 +206,11 @@ export default function LGADashboardPage() {
         </div>
       )}
 
-      {/* Subscription status card */}
+      {/* Subscription status card — simplified while payments is hidden */}
       {lga && lgaStatus === "APPROVED" && (
-        <div className={`rounded-xl p-4 mb-5 border flex items-center justify-between gap-4 ${
-          subStatus === "active" || (!subEnd && !freeUntil)
-            ? "bg-green-50 border-green-200"
-            : daysLeftSub !== null && daysLeftSub <= 7
-              ? "bg-red-50 border-red-200"
-              : "bg-blue-50 border-blue-200"
-        }`}>
-          <div className="flex items-center gap-3">
-            <CreditCard className={`h-5 w-5 shrink-0 ${
-              daysLeftSub !== null && daysLeftSub <= 7 ? "text-red-500" : "text-blue-600"
-            }`} />
-            <div>
-              <p className="text-sm font-semibold text-slate-800">
-                {freeUntil && !subEnd ? "Free Trial" : subStatus === "active" ? "Subscription Active" : "Subscription"}
-              </p>
-              <p className="text-xs text-slate-500 mt-0.5">
-                {freeUntil && !subEnd
-                  ? `Free until ${new Date(freeUntil).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}`
-                  : subEnd
-                    ? `Renews ${new Date(subEnd).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" })}`
-                    : "No active subscription"}
-              </p>
-            </div>
-          </div>
-          <Link
-            href="/lga-dashboard/payments"
-            className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-700 hover:bg-green-800 text-white text-xs font-semibold transition-colors"
-          >
-            {subEnd ? "Manage" : "Subscribe"} <ArrowRight className="h-3 w-3" />
-          </Link>
+        <div className="rounded-xl p-4 mb-5 border bg-green-50 border-green-200 flex items-center gap-3">
+          <CreditCard className="h-5 w-5 shrink-0 text-green-600" />
+          <p className="text-sm font-semibold text-slate-800">Free Trial</p>
         </div>
       )}
 

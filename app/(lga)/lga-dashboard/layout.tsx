@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, TrendingUp, FileText, MessageSquare,
-  Settings, LogOut, Shield, Users, Newspaper, UserCog, CalendarClock, CreditCard,
+  Settings, LogOut, Shield, Users, Newspaper, UserCog, CalendarClock,
   BarChart2,
 } from "lucide-react";
 
@@ -20,7 +20,7 @@ const navItems = [
   { href: "/lga-dashboard/press-releases", label: "Press Releases",     icon: Newspaper       },
   { href: "/lga-dashboard/staff",          label: "Staff Management",   icon: UserCog         },
   { href: "/lga-dashboard/tenure",         label: "Tenure",             icon: CalendarClock   },
-  { href: "/lga-dashboard/payments",       label: "Payments",           icon: CreditCard      },
+  // Payments tab hidden for now — see app/(lga)/lga-dashboard/payments/page.tsx
   { href: "/lga-dashboard/settings",       label: "Settings",           icon: Settings        },
 ];
 

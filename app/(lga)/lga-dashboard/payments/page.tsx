@@ -1,8 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Loader2, Download, FileText, RefreshCw, CheckCircle, Clock, AlertCircle } from "lucide-react";
+
+// Flip back to false to re-enable this page and its nav tab (see
+// app/(lga)/lga-dashboard/layout.tsx) once payments are ready again.
+const PAYMENTS_HIDDEN = true;
 
 interface Transaction {
   id: string;
@@ -41,6 +46,11 @@ function cycleLabel(durationDays: number): string {
 }
 
 export default function LGAPaymentsPage() {
+  // Payments is hidden for now — bounce straight back to the dashboard
+  // instead of rendering this page, even if someone hits the URL directly.
+  const router = useRouter();
+  useEffect(() => { if (PAYMENTS_HIDDEN) router.replace("/lga-dashboard"); }, [router]);
+
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -120,6 +130,10 @@ export default function LGAPaymentsPage() {
 
   const latestSuccessful = transactions.find((t) => t.status === "SUCCESS");
   const isSubscriptionActive = !!latestSuccessful;
+
+  // Payments is hidden for now; the effect above redirects away before this
+  // ever needs to render.
+  if (PAYMENTS_HIDDEN) return null;
 
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto">
